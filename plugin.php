@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use Porta\Image\ImageDecoder;
-use Porta\Plugin\PluginApi;
-use Porta\Plugin\PortaPlugin;
+use Porta\Plugin\Api\PluginApi;
+use Porta\Plugin\Api\PortaPlugin;
 
 /**
  * The inline image viewer as a bundled plugin: the whole plugin is the ROUTING
