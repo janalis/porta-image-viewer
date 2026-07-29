@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use Porta\Image\ImageDecoder;
+use Porta\Plugin\Api\AbstractPlugin;
 use Porta\Plugin\Api\PluginApi;
-use Porta\Plugin\Api\PortaPlugin;
 
 /**
  * The inline image viewer as a bundled plugin: the whole plugin is the ROUTING
@@ -16,12 +16,7 @@ use Porta\Plugin\Api\PortaPlugin;
  * No menu entries on purpose: a viewer has nothing to invoke — its keys live
  * on the pane and its one knob is the settings row below.
  */
-return new class implements PortaPlugin {
-    public function name(): string
-    {
-        return 'image-viewer';
-    }
-
+return new class('image-viewer') extends AbstractPlugin {
     public function activate(PluginApi $api): void
     {
         $api->registerSetting('maxBytes', 'Skip images larger than (bytes)', 'int', ImageDecoder::MAX_BYTES);
