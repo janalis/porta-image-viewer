@@ -47,8 +47,6 @@ return new class('image-viewer') extends AbstractPlugin {
     /** An SVG is the viewer's only if the user wants it AND something can rasterize it. */
     private function claimsSvg(PluginApi $api, string $path): bool
     {
-        return SvgConverter::isSvgPath($path)
-            && (bool) $api->setting('svg')
-            && (null !== $this->coreSetting('svgConverter') || null !== SvgConverter::discover());
+        return SvgConverter::isSvgPath($path) && (bool) $api->setting('svg') && (null !== $this->coreSetting('svgConverter') || null !== SvgConverter::discover());
     }
 };
