@@ -42,6 +42,19 @@ return new class('image-viewer') extends AbstractPlugin {
 
         $decoder = new ImageDecoder();
         $svg = new SvgRasterizer($api->projectRoot(), $this->coreSetting('svgConverter'));
+        // The keys this pane binds — declared so Settings → Keymap lists them
+        // and .porta.json may rebind them. The DEFAULTS live in the pane's own
+        // getDefaultKeybindings(); what core needs is the id and the label.
+        $api->registerActions([
+            'image_zoom_in' => 'Image: Zoom In',
+            'image_zoom_out' => 'Image: Zoom Out',
+            'image_zoom_fit' => 'Image: Fit to Window',
+            'image_zoom_actual' => 'Image: Actual Size',
+            'image_pan_left' => 'Image: Pan Left',
+            'image_pan_right' => 'Image: Pan Right',
+            'image_pan_up' => 'Image: Pan Up',
+            'image_pan_down' => 'Image: Pan Down',
+        ]);
         $api->registerPane(
             'image',
             static fn (PaneServices $pane): EditorPaneWidget => new ImageViewerWidget($svg, $pane->translator, $pane->scheduler, $pane->styles),

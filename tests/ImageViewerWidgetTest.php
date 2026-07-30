@@ -5,12 +5,18 @@ declare(strict_types=1);
 namespace Porta\ImageViewer\Tests;
 
 use PHPUnit\Framework\TestCase;
+use Porta\Config\ActionCatalog;
 use Porta\I18n\Translator;
 use Porta\ImageViewer\ImageData;
 use Porta\ImageViewer\ImageViewerWidget;
+use Porta\Plugin\Api\PluginApi;
+use Porta\Plugin\Runtime\PluginEvents;
+use Porta\Plugin\Runtime\PluginManager;
+use Porta\Plugin\Runtime\PluginSettings;
 use Porta\Tests\Support\FakeRasterizer;
 use Porta\Tests\Support\FakeScheduler;
 use Porta\Tests\Support\PngFixture;
+use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\RecordingViewerTabHandler;
 use Porta\Ui\Glyphs;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
@@ -399,5 +405,33 @@ final class ImageViewerWidgetTest extends TestCase
 
         $this->assertSame([], $this->scheduler->scheduled, 'the pane went away; so did the request');
         $this->assertNotSame([], $this->scheduler->cancelled);
+    }
+
+    public function testItBindsExactlyTheActionsThePluginDeclares(): void
+    {
+        // The pane's keys and the keymap page's rows are both this plugin's
+        // now — plugin.php declares the ids, the widget binds them — and each
+        // direction catches what the other cannot see: a declared action
+        // nothing binds is a dead keymap row, a bound key nothing declares is a
+        // key the user can neither find nor rebind.
+        $manager = new PluginManager(new PluginEvents(), new PluginSettings('/p', []));
+        $api = new PluginApi('image-viewer', $manager, '/p', new PluginSettings('/p', []));
+        $plugin = require \dirname(__DIR__).'/plugin.php';
+        $plugin->activate($api);
+
+        $declared = array_column($api->bufferedActions(), 'id');
+        /** @var array<string, list<string>> $bound */
+        $bound = Probe::invokeStatic(ImageViewerWidget::class, 'getDefaultKeybindings');
+
+        // Scoped to the ids CORE does not declare — a pane also binds core
+        // actions (goto_file, next_buffer…) and those are the catalog's rows,
+        // not this plugin's. What must match is the remainder: the actions that
+        // exist only because this plugin exists.
+        $ours = array_keys(array_diff_key($bound, ActionCatalog::ACTIONS));
+
+        $this->assertNotSame([], $declared);
+        sort($declared);
+        sort($ours);
+        $this->assertSame($ours, $declared, 'every declared action is bound, and every key core does not declare is declared here');
     }
 }
