@@ -1,0 +1,4 @@
+{
+    "namespace": "Porta\\ImageViewer",
+    "autoload": "src"
+}

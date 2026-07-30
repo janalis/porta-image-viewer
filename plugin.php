@@ -2,17 +2,26 @@
 
 declare(strict_types=1);
 
-use Porta\Image\ImageDecoder;
-use Porta\Image\SvgConverter;
+use Porta\Editor\PaneServices;
+use Porta\ImageViewer\ImageDecoder;
+use Porta\ImageViewer\ImageViewerWidget;
+use Porta\ImageViewer\SvgConverter;
+use Porta\ImageViewer\SvgRasterizer;
 use Porta\Plugin\Api\AbstractPlugin;
 use Porta\Plugin\Api\PluginApi;
+use Porta\Widget\EditorPaneWidget;
 
 /**
- * The inline image viewer as a bundled plugin: the whole plugin is the ROUTING
- * CLAIM — image extensions open in the built-in image pane. The viewer
- * implementation (decoder, rasterizer, zoom/pan, the pane widget) stays in
- * `src/`, covered and container-built; disabling this plugin simply stops
- * routing, so images fall through to the text path's not-UTF-8 refusal.
+ * The inline image viewer as a bundled plugin: the routing claim AND the pane
+ * behind it. Everything the viewer is — the decoder, the half-block rasterizer,
+ * the zoom/pan model, the SVG converter and the pane widget — is this plugin's
+ * own code (`src/`, namespace `Porta\ImageViewer`), graded by the same gates as
+ * core. Disabling the plugin stops the routing, so images fall through to the
+ * text path's not-UTF-8 refusal.
+ *
+ * The graph viewer DEPENDS on this one (`requires` in its plugin.json): a graph
+ * is painted with the same rasterizer at the same half-block resolution, and
+ * two copies of a measured sampler would be two things to keep in step.
  * Enabled by default ({@see \Porta\Config\IdeConfig::DEFAULT_ENABLED_PLUGINS}).
  * No menu entries on purpose: a viewer has nothing to invoke — its keys live
  * on the pane and its knobs are the settings rows below.
@@ -30,6 +39,32 @@ return new class('image-viewer') extends AbstractPlugin {
     {
         $api->registerSetting('maxBytes', 'Skip images larger than (bytes)', 'int', ImageDecoder::MAX_BYTES);
         $api->registerSetting('svg', 'Render SVG as an image', 'bool', true);
+
+        $decoder = new ImageDecoder();
+        $svg = new SvgRasterizer($api->projectRoot(), $this->coreSetting('svgConverter'));
+        $api->registerPane(
+            'image',
+            static fn (PaneServices $pane): EditorPaneWidget => new ImageViewerWidget($svg, $pane->translator, $pane->scheduler, $pane->styles),
+            // A bitmap rides as decoded pixels, an SVG as its SOURCE — the pane
+            // rasterizes that per zoom level, so which pixels depends on the zoom.
+            // No size guard on the vector branch: there is no decoder to protect,
+            // and the claim's own maxBytes IS the limit.
+            static function (string $path) use ($decoder): mixed {
+                if (SvgConverter::isSvgPath($path)) {
+                    $source = (string) file_get_contents($path);
+                    if ('' !== $source && !mb_check_encoding($source, encoding: 'UTF-8')) {
+                        throw new \RuntimeException('Not a UTF-8 text file');
+                    }
+
+                    return $source;
+                }
+                if ((int) filesize($path) > ImageDecoder::MAX_BYTES) {
+                    throw new \RuntimeException('Image too large (> 20 MB)');
+                }
+
+                return $decoder->decode($path) ?? throw new \RuntimeException('Cannot display image '.basename($path));
+            },
+        );
 
         $extensions = array_map(strtolower(...), ImageDecoder::EXTENSIONS);
         $api->registerViewer('image', function (string $path) use ($api, $extensions): bool {

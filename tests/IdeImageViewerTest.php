@@ -7,10 +7,14 @@ namespace Porta\ImageViewer\Tests;
 use PHPUnit\Framework\TestCase;
 use Porta\Config\CommandRegistry;
 use Porta\Editor\BufferManager;
+use Porta\Editor\BufferNavigator;
 use Porta\Editor\BufferService;
+use Porta\Editor\EditorPanes;
 use Porta\Editor\OpenFocus;
 use Porta\Tests\Support\ClearsPortaLsp;
+use Porta\Tests\Support\PngFixture;
 use Porta\Tests\Support\PreservesPath;
+use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\RunsIde;
 use Porta\Tests\Support\Services;
 use Porta\Tests\Support\TempProject;
@@ -29,6 +33,27 @@ final class IdeImageViewerTest extends TestCase
     use PreservesPath;
     use RunsIde;
     use UsesBundledPlugins;
+
+    public function testThePaneIsHandedTheSameTabHandlerCorePanesGet(): void
+    {
+        // A plugin pane's tab keys — next/prev/close/go-to-file — work only
+        // because the registrar hands it the IDE's own ViewerTabHandler. Core
+        // cannot assert this: the pane type is this plugin's.
+        $project = new TempProject(['img.png' => PngFixture::bytes(4, 4)]);
+        putenv('PATH=/nonexistent');
+
+        $this->runIde(
+            $project,
+            $project->path('img.png'),
+            [
+                200 => function ($tui, $terminal, $ide): void {
+                    $pane = Services::resolve($ide, EditorPanes::class)->paneFor('image');
+                    $this->assertNotNull($pane, 'the bundled plugin registered its pane');
+                    $this->assertInstanceOf(BufferNavigator::class, Probe::get($pane, 'handler'));
+                },
+            ],
+        );
+    }
 
     public function testImageOpensInlineWithHalfBlocksZoomAndPan(): void
     {
