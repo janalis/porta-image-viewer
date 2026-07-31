@@ -34,12 +34,31 @@ final class IdeImageViewerTest extends TestCase
     use RunsIde;
     use UsesBundledPlugins;
 
+    /**
+     * A project with ONLY this plugin enabled.
+     *
+     * Booting an IDE loads every default-enabled bundled plugin, and any file
+     * they touch lands in the serial plugin-coverage report — so an unrelated
+     * plugin's uncovered line would fail this suite. Naming the list keeps each
+     * plugin's coverage its own tests' business.
+     *
+     * @param array<string, string> $files
+     */
+    private static function project(array $files): TempProject
+    {
+        /** @var array<string, mixed> $config */
+        $config = json_decode($files['.porta.json'] ?? '{}', associative: true);
+        $config['enabledPlugins'] = ['image-viewer'];
+
+        return new TempProject([...$files, '.porta.json' => (string) json_encode($config)]);
+    }
+
     public function testThePaneIsHandedTheSameTabHandlerCorePanesGet(): void
     {
         // A plugin pane's tab keys — next/prev/close/go-to-file — work only
         // because the registrar hands it the IDE's own ViewerTabHandler. Core
         // cannot assert this: the pane type is this plugin's.
-        $project = new TempProject(['img.png' => PngFixture::bytes(4, 4)]);
+        $project = self::project(['img.png' => PngFixture::bytes(4, 4)]);
         putenv('PATH=/nonexistent');
 
         $this->runIde(
@@ -58,7 +77,7 @@ final class IdeImageViewerTest extends TestCase
     public function testImageOpensInlineWithHalfBlocksZoomAndPan(): void
     {
         putenv('PATH=/nonexistent');
-        $project = new TempProject(['img.png' => $this->twoColorPng(64, 64)]);
+        $project = self::project(['img.png' => $this->twoColorPng(64, 64)]);
 
         $this->runIde(
             $project,
@@ -119,7 +138,7 @@ final class IdeImageViewerTest extends TestCase
     public function testATrackpadCtrlScrollBurstGlidesWhereASingleNotchSteps(): void
     {
         putenv('PATH=/nonexistent');
-        $project = new TempProject(['img.png' => $this->twoColorPng(64, 64)]);
+        $project = self::project(['img.png' => $this->twoColorPng(64, 64)]);
 
         $this->runIde(
             $project,
@@ -158,7 +177,7 @@ final class IdeImageViewerTest extends TestCase
     {
         putenv('PATH=/nonexistent');
         $png = $this->twoColorPng(8, 4);
-        $project = new TempProject(['a.php' => "<?php\n// code\n", 'img.png' => $png]);
+        $project = self::project(['a.php' => "<?php\n// code\n", 'img.png' => $png]);
 
         $this->runIde(
             $project,
@@ -215,7 +234,7 @@ final class IdeImageViewerTest extends TestCase
     public function testImageTabGuardsEditorHostedModals(): void
     {
         putenv('PATH=/nonexistent');
-        $project = new TempProject(['a.php' => "<?php\n", 'img.png' => $this->twoColorPng(4, 4)]);
+        $project = self::project(['a.php' => "<?php\n", 'img.png' => $this->twoColorPng(4, 4)]);
 
         // With only the image open, the editor-hosted modals refuse with a flash.
         $this->runIde(
@@ -255,7 +274,7 @@ final class IdeImageViewerTest extends TestCase
     public function testImageOpenRejectsOversizedCorruptAndLastTabCloseEmptiesTheEditor(): void
     {
         putenv('PATH=/nonexistent');
-        $project = new TempProject([
+        $project = self::project([
             // The plugin's maxBytes claim is raised past the core decoder cap,
             // so the oversized file still ROUTES to the image path and the
             // core backstop refuses it (the default claim would drop it to the
@@ -309,7 +328,7 @@ final class IdeImageViewerTest extends TestCase
     public function testReopeningAChangedImageRefreshesThePixelsImmediately(): void
     {
         putenv('PATH=/nonexistent');
-        $project = new TempProject(['img.png' => $this->twoColorPng(64, 64), 'a.php' => "<?php\n"]);
+        $project = self::project(['img.png' => $this->twoColorPng(64, 64), 'a.php' => "<?php\n"]);
 
         $this->runIde(
             $project,
@@ -353,7 +372,7 @@ final class IdeImageViewerTest extends TestCase
 
     public function testAnSvgOpensAsAPictureRasterizedByTheConverter(): void
     {
-        $project = new TempProject([
+        $project = self::project([
             '.porta.json' => (string) json_encode(['settings' => ['svgConverter' => self::fakeConverter()]]),
             'logo.svg' => self::SMALL_SVG,
             'other.svg' => self::SMALL_SVG,
@@ -394,7 +413,7 @@ final class IdeImageViewerTest extends TestCase
 
     public function testReopeningAChangedSvgRerastersItImmediately(): void
     {
-        $project = new TempProject([
+        $project = self::project([
             '.porta.json' => (string) json_encode(['settings' => ['svgConverter' => self::fakeConverter()]]),
             'logo.svg' => self::SMALL_SVG,
         ]);
@@ -425,7 +444,7 @@ final class IdeImageViewerTest extends TestCase
         // the reconciler sent it down the BITMAP path, asked the decoder for an
         // SVG, was refused, and returned. Nothing reloaded until the tab was
         // re-opened by hand. The payload shape now tells the two apart.
-        $project = new TempProject([
+        $project = self::project([
             '.porta.json' => (string) json_encode(['settings' => ['svgConverter' => self::fakeConverter()]]),
             'logo.svg' => self::SMALL_SVG,
         ]);
@@ -471,7 +490,7 @@ final class IdeImageViewerTest extends TestCase
 
     public function testOpenAsTextGivesTheXmlBack(): void
     {
-        $project = new TempProject([
+        $project = self::project([
             '.porta.json' => (string) json_encode(['settings' => ['svgConverter' => self::fakeConverter()]]),
             'logo.svg' => self::SMALL_SVG,
         ]);
@@ -497,7 +516,7 @@ final class IdeImageViewerTest extends TestCase
     public function testWithoutAConverterAnSvgStaysText(): void
     {
         putenv('PATH=/nonexistent'); // nothing to discover, and no setting
-        $project = new TempProject(['logo.svg' => self::SMALL_SVG]);
+        $project = self::project(['logo.svg' => self::SMALL_SVG]);
 
         $this->runIde(
             $project,
@@ -514,7 +533,7 @@ final class IdeImageViewerTest extends TestCase
 
     public function testTheSvgSettingSendsItBackToTheEditor(): void
     {
-        $project = new TempProject([
+        $project = self::project([
             '.porta.json' => (string) json_encode([
                 'settings' => ['svgConverter' => self::fakeConverter()],
                 'plugins' => ['image-viewer' => ['svg' => false]],
