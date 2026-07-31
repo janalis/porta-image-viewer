@@ -10,7 +10,6 @@ use Porta\I18n\Translator;
 use Porta\ImageViewer\ImageData;
 use Porta\ImageViewer\ImageViewerWidget;
 use Porta\Plugin\Api\PluginApi;
-use Porta\Plugin\Runtime\PluginEvents;
 use Porta\Plugin\Runtime\PluginManager;
 use Porta\Plugin\Runtime\PluginSettings;
 use Porta\Tests\Support\FakeRasterizer;
@@ -19,6 +18,7 @@ use Porta\Tests\Support\PngFixture;
 use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\RecordingViewerTabHandler;
 use Porta\Ui\Glyphs;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
 use Symfony\Component\Tui\Render\RenderContext;
 
@@ -414,7 +414,7 @@ final class ImageViewerWidgetTest extends TestCase
         // direction catches what the other cannot see: a declared action
         // nothing binds is a dead keymap row, a bound key nothing declares is a
         // key the user can neither find nor rebind.
-        $manager = new PluginManager(new PluginEvents(), new PluginSettings('/p', []));
+        $manager = new PluginManager(new EventDispatcher(), new PluginSettings('/p', []));
         $api = new PluginApi('image-viewer', $manager, '/p', new PluginSettings('/p', []));
         $plugin = require \dirname(__DIR__).'/plugin.php';
         $plugin->activate($api);
