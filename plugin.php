@@ -19,7 +19,8 @@ use Porta\Widget\EditorPaneWidget;
  * core. Disabling the plugin stops the routing, so images fall through to the
  * text path's not-UTF-8 refusal.
  *
- * The graph viewer DEPENDS on this one (`requires` in its plugin.json): a graph
+ * The graph viewer DEPENDS on this one (`extra.porta.requires` in its
+ * composer.json): a graph
  * is painted with the same rasterizer at the same half-block resolution, and
  * two copies of a measured sampler would be two things to keep in step.
  * Enabled by default ({@see \Porta\Config\IdeConfig::DEFAULT_ENABLED_PLUGINS}).
