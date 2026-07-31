@@ -96,7 +96,7 @@ final class IdeImageViewerTest extends TestCase
                     $tui->handleInput('='); // zoom in one ladder step
                 },
                 340 => function ($tui, $terminal): void {
-                    $tui->tick();
+                    $this->frame($tui);
                     $this->assertStringContainsString('100%', $terminal->getOutput(), 'zoomed to the next step');
                     // Pan with arrows; wheel + click routing over the image pane.
                     $tui->handleInput("\x1b[C");
@@ -107,7 +107,7 @@ final class IdeImageViewerTest extends TestCase
                     $tui->handleInput("\x1b[<80;80;10M"); // ctrl+wheel up → zoom in toward the pointer
                 },
                 480 => function ($tui, $terminal): void {
-                    $tui->tick();
+                    $this->frame($tui);
                     $this->assertStringContainsString('200%', $terminal->getOutput(), 'ctrl+wheel zoomed a ladder step');
                     $tui->handleInput("\x1b[<81;80;10M"); // ctrl+wheel down → back out
                     $this->assertSame('100%', $tui->getById('image-viewer')->zoomLabel());
@@ -122,7 +122,7 @@ final class IdeImageViewerTest extends TestCase
                     // The menu composites over the image pane (no hole), and closing
                     // it restores focus to the viewer (editor-area-aware default).
                     $tui->handleInput("\x1b[21~"); // F10 → menu
-                    $tui->tick();
+                    $this->frame($tui);
                     $this->assertStringContainsString('Ctrl+Q', AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'the File dropdown composites over the image');
                     $tui->handleInput("\x1b"); // close the menu
                 },
@@ -212,7 +212,7 @@ final class IdeImageViewerTest extends TestCase
                     $service->pollFilesystem();
                     $buffers = Services::resolve($ide, BufferManager::class);
                     $this->assertSame(16, $buffers->active()?->panePayload?->width, 'externally changed image reloaded');
-                    $tui->tick();
+                    $this->frame($tui);
                     $this->assertStringContainsString('Reloaded img.png', AnsiUtils::stripAnsiCodes($terminal->getOutput()));
                     file_put_contents($project->path('img.png'), data: 'not a png anymore');
                     touch($project->path('img.png'), time() + 4);
@@ -244,7 +244,7 @@ final class IdeImageViewerTest extends TestCase
                 200 => function ($tui, $terminal): void {
                     $tui->handleInput("\x1b[101;6u"); // ctrl+shift+e → search everywhere
                     $tui->handleInput("\x1b[102;6u"); // ctrl+shift+f → find in files (same guard)
-                    $tui->tick();
+                    $this->frame($tui);
                     $this->assertStringContainsString('Not available in this view', AnsiUtils::stripAnsiCodes($terminal->getOutput()));
                 },
             ],
@@ -292,10 +292,10 @@ final class IdeImageViewerTest extends TestCase
                 200 => function ($tui, $terminal, $ide) use ($project): void {
                     $service = Services::resolve($ide, BufferService::class);
                     $service->openFile($project->path('big.png'));
-                    $tui->tick();
+                    $this->frame($tui);
                     $this->assertStringContainsString('Image too large (> 20 MB)', AnsiUtils::stripAnsiCodes($terminal->getOutput()));
                     $service->openFile($project->path('fake.png'));
-                    $tui->tick();
+                    $this->frame($tui);
                     $this->assertStringContainsString('Cannot display image fake.png', AnsiUtils::stripAnsiCodes($terminal->getOutput()));
                     // Open the good one, then close the last tab: the editor pane empties.
                     $service->openFile($project->path('img.png'), OpenFocus::Editor);
@@ -335,7 +335,7 @@ final class IdeImageViewerTest extends TestCase
             $project->path('img.png'),
             [
                 200 => function ($tui, $terminal, $ide) use ($project): void {
-                    $tui->tick();
+                    $this->frame($tui);
                     $this->assertStringContainsString('64 × 64', AnsiUtils::stripAnsiCodes($terminal->getOutput()));
 
                     // Switch away, change the file on disk, and explicitly re-open:
