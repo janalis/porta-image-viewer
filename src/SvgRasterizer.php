@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Porta\ImageViewer;
 
 use Porta\Support\AsyncProcess;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Process\ExecutableFinder;
 
 /**
@@ -28,7 +27,6 @@ final class SvgRasterizer implements Rasterizer
     public function __construct(
         private readonly string $rootDir,
         // The "SVG converter" setting; '' resolves to null (auto-discover).
-        #[Autowire('%env(default::PORTA_SVG_CONVERTER)%')]
         private readonly ?string $converterPath = null,
     ) {}
 
