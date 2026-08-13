@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Porta\ImageViewer;
 
+use Porta\Support\Files;
 use Porta\Support\ProjectPaths;
 
 /**
@@ -33,7 +34,7 @@ final class ImageDecoder
     /** Decode the file, or null when the bytes are not a displayable image. */
     public function decode(string $path): ?ImageData
     {
-        return $this->decodeBytes(is_file($path) ? (string) file_get_contents($path) : '');
+        return $this->decodeBytes(Files::read($path));
     }
 
     /**
