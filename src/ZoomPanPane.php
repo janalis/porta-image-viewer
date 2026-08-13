@@ -19,9 +19,9 @@ use Symfony\Component\Tui\Ansi\AnsiUtils;
  *
  * What stays each widget's own is what it SHOWS and how it refines it: the
  * show/clear pipeline, contentLines' happy path, the keymap (its action ids
- * are user-visible rebinding names), and {@see afterViewChange()} — the hook
- * every gesture ends in, which repaints and schedules whichever sharper
- * render (raster, bitmap) that pane knows how to ask for.
+ * are user-visible rebinding names), and {@see scheduleRefine()} — whichever
+ * sharper render (raster, bitmap) that pane knows how to ask for once a
+ * gesture lands. The gesture tail itself (repaint, handler notify) is shared.
  *
  * @require-extends NavigablePaneWidget
  */
@@ -37,7 +37,15 @@ trait ZoomPanPane
     private int $lastRows = 24;
 
     /** Every gesture ends here: repaint, tell the handler, refine the render. */
-    abstract protected function afterViewChange(): void;
+    protected function afterViewChange(): void
+    {
+        $this->invalidate();
+        $this->handler?->viewChanged();
+        $this->scheduleRefine();
+    }
+
+    /** Schedule whichever sharper render this pane knows how to ask for, once the gesture settles. */
+    abstract protected function scheduleRefine(): void;
 
     /** The status bar's document summary, '' when nothing is shown. */
     abstract public function statusInfo(): string;

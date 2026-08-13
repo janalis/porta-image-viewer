@@ -219,7 +219,7 @@ final class ImageViewerWidget extends NavigablePaneWidget
      * lands on the same resolution) costs nothing, and a Ctrl+scroll glide costs
      * one process rather than one per notch — the graph viewer's arrangement.
      */
-    private function scheduleRaster(): void
+    protected function scheduleRefine(): void
     {
         if (null === $this->svg || null === $this->view) {
             return; // a bitmap tab has nothing to re-render
@@ -265,7 +265,7 @@ final class ImageViewerWidget extends NavigablePaneWidget
         $this->lastRows = $rows;
         // The fit scale depends on the pane size, which is only known here; the
         // wanted-scale guard makes this a float compare on every other frame.
-        $this->scheduleRaster();
+        $this->scheduleRefine();
         $lines = $this->contentLines($cols, $rows);
 
         // A caret-less, row-less pane still needs a focus cue like its siblings:
@@ -355,12 +355,5 @@ final class ImageViewerWidget extends NavigablePaneWidget
             'goto_file' => ['ctrl+shift+n', 'ctrl+p'],
             'save_all' => ['ctrl+alt+s'],
         ];
-    }
-
-    protected function afterViewChange(): void
-    {
-        $this->invalidate();
-        $this->handler?->viewChanged();
-        $this->scheduleRaster();
     }
 }
