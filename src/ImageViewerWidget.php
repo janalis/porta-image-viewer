@@ -15,11 +15,9 @@ use Porta\Support\DebouncedRequest;
 use Porta\Support\RevoltScheduler;
 use Porta\Support\Scheduler;
 use Porta\Support\Text;
-use Porta\Ui\Glyphs;
 use Porta\Ui\Role;
 use Porta\Ui\Theme\Styles;
 use Porta\Widget\NavigablePaneWidget;
-use Symfony\Component\Tui\Ansi\AnsiUtils;
 use Symfony\Component\Tui\Input\Key;
 use Symfony\Component\Tui\Render\RenderContext;
 
@@ -32,11 +30,9 @@ use Symfony\Component\Tui\Render\RenderContext;
  */
 final class ImageViewerWidget extends NavigablePaneWidget
 {
-    /** How long a zoom has to settle before the converter is asked for a sharper raster. */
-    private const float RENDER_DEBOUNCE = 0.15;
+    use ZoomPanPane;
 
     private ?ImageData $image = null;
-    private ?ZoomPanModel $view = null;
     /** The SVG source of a VECTOR tab, re-rasterized per zoom level; null for a bitmap tab. */
     private ?string $svg = null;
     /** The vector tab's path, so a REGENERATION is told from a tab switch. */
@@ -50,9 +46,6 @@ final class ImageViewerWidget extends NavigablePaneWidget
     private ?string $error = null;
     /** Memoises the area-averaged copy this pane samples while shrinking. */
     private readonly ScaledSource $scaled;
-    /** last rendered pane size, so key handling scales/pans what is on screen */
-    private int $lastCols = 80;
-    private int $lastRows = 24;
 
     public function __construct(
         private readonly Rasterizer $rasterizer,
@@ -254,54 +247,10 @@ final class ImageViewerWidget extends NavigablePaneWidget
         return null === $this->view ? '' : \sprintf('%d × %d', ...$this->view->dimensions());
     }
 
-    /** The status bar's zoom text ('Fit (37%)' / '200%'), '' when nothing is shown. */
-    public function zoomLabel(): string
+    /** This pane's status-segment key hints — arrows pan, nothing to select. */
+    protected function keysHint(): string
     {
-        return null === $this->view ? '' : $this->view->zoomLabel($this->lastCols, 2 * $this->lastRows);
-    }
-
-    /** Ctrl+wheel: zoom one step anchored on the pane cell under the pointer. */
-    /**
-     * The status bar's right segment while this pane holds the slot: the
-     * document's own size, the zoom, and the keys — the pane knows what its keys
-     * do and the status bar does not.
-     */
-    public function statusRight(): string
-    {
-        return trim(\sprintf('%s  %s  %s', $this->statusInfo(), $this->zoomLabel(), $this->translator->trans('+/- zoom  0 fit  Arrows pan  Ctrl+Q quit')));
-    }
-
-    public function zoomAt(int $dir, int $relCol, int $relRow): void
-    {
-        if (null === $this->view) {
-            return;
-        }
-        $this->view->zoomAt($dir, $relCol, (2 * $relRow) + 1, $this->lastCols, 2 * $this->lastRows);
-        $this->afterViewChange();
-    }
-
-    /**
-     * The continuous half of the same gesture: zoom by a factor on the same
-     * anchor, for the burst of notches a trackpad's Ctrl+scroll delivers
-     * ({@see \Porta\Input\ZoomGesture}).
-     */
-    public function magnifyAt(float $factor, int $relCol, int $relRow): void
-    {
-        if (null === $this->view) {
-            return;
-        }
-        $this->view->magnifyAt($factor, $relCol, (2 * $relRow) + 1, $this->lastCols, 2 * $this->lastRows);
-        $this->afterViewChange();
-    }
-
-    /** Pan by wheel scrolling (in half-rows vertically, columns horizontally). */
-    public function scrollBy(int $dxCells, int $dyHalfRows): void
-    {
-        if (null === $this->view) {
-            return;
-        }
-        $this->view->panBy($dxCells, $dyHalfRows, $this->lastCols, 2 * $this->lastRows);
-        $this->afterViewChange();
+        return $this->translator->trans('+/- zoom  0 fit  Arrows pan  Ctrl+Q quit');
     }
 
     /** @return list<string> */
@@ -328,8 +277,7 @@ final class ImageViewerWidget extends NavigablePaneWidget
         // A vector tab's banner outranks the focus frame's top border, the graph
         // viewer's rule — a converter error must not hide behind focus chrome.
         if (null !== $this->image && null !== $this->error) {
-            $banner = ' ✗ '.Text::firstLine($this->error).' ';
-            $lines[0] = AnsiUtils::truncateToWidth($this->styles->of(Role::DiagError)->apply($banner), $cols, pad: true);
+            $lines[0] = $this->errorBanner($this->error, $cols);
         }
 
         return $this->withMenuOverlay($lines, $cols);
@@ -351,44 +299,13 @@ final class ImageViewerWidget extends NavigablePaneWidget
                 $rows,
             );
         }
-        $blank = array_fill(0, max(1, $rows), str_repeat(' ', max(1, $cols)));
         $message = match (true) {
             null !== $this->error => Text::firstLine($this->error),
             $this->rasterizing => '⏳ '.$this->translator->trans('rendering…'),
             default => '',
         };
-        if ('' === $message) {
-            return $blank;
-        }
-        $text = AnsiUtils::truncateToWidth($message, $cols);
-        $pad = max(0, intdiv($cols - AnsiUtils::visibleWidth($text), num2: 2));
-        $style = null !== $this->error ? Role::DiagError : Role::Dim;
-        $blank[intdiv($rows, num2: 2)] = str_repeat(' ', $pad).$this->styles->of($style)->apply($text).str_repeat(' ', max(0, $cols - $pad - AnsiUtils::visibleWidth($text)));
 
-        return $blank;
-    }
-
-    /**
-     * Overlay the focus frame on the outer ring, keeping every line $cols wide
-     * (the box glyphs are one column). The middle rows keep the image between
-     * their side rails via a column slice, so the pan/zoom geometry is untouched.
-     *
-     * @param list<string> $lines
-     *
-     * @return list<string>
-     */
-    private function focusFrame(array $lines, int $cols, int $rows): array
-    {
-        $accent = $this->styles->of(Role::TabAccent);
-        $span = max(0, $cols - 2);
-        $lines[0] = $accent->apply(Glyphs::FRAME_TOP_LEFT.str_repeat(Glyphs::FRAME_HORIZONTAL, $span).Glyphs::FRAME_TOP_RIGHT);
-        $lines[$rows - 1] = $accent->apply(Glyphs::FRAME_BOTTOM_LEFT.str_repeat(Glyphs::FRAME_HORIZONTAL, $span).Glyphs::FRAME_BOTTOM_RIGHT);
-        $rail = $accent->apply(Glyphs::FRAME_VERTICAL);
-        for ($r = 1; $r < ($rows - 1); ++$r) {
-            $lines[$r] = $rail.AnsiUtils::sliceByColumn($lines[$r], 1, $cols - 2).$rail;
-        }
-
-        return $lines;
+        return $this->messagePane($message, null !== $this->error ? Role::DiagError : Role::Dim, $cols, $rows);
     }
 
     public function handleInput(string $data): void
@@ -438,30 +355,6 @@ final class ImageViewerWidget extends NavigablePaneWidget
             'goto_file' => ['ctrl+shift+n', 'ctrl+p'],
             'save_all' => ['ctrl+alt+s'],
         ];
-    }
-
-    private function zoom(int $dir): void
-    {
-        $this->withView(fn (ZoomPanModel $v) => $dir > 0 ? $v->zoomIn($this->lastCols, 2 * $this->lastRows) : $v->zoomOut($this->lastCols, 2 * $this->lastRows));
-    }
-
-    /** Shift+arrow pans a 5× larger step. */
-    private function pan(int $dx, int $dy, string $data): void
-    {
-        $factor = str_starts_with($data, "\x1b[1;2") ? 5 : 1; // CSI 1;2 = shift-modified arrow
-        if (null !== $this->view) {
-            $this->view->panBy($dx * $factor, $dy * $factor, $this->lastCols, 2 * $this->lastRows);
-            $this->afterViewChange();
-        }
-    }
-
-    /** @param \Closure(ZoomPanModel): mixed $mutate */
-    private function withView(\Closure $mutate): void
-    {
-        if (null !== $this->view) {
-            $mutate($this->view);
-            $this->afterViewChange();
-        }
     }
 
     protected function afterViewChange(): void
