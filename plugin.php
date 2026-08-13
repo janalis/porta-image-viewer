@@ -9,6 +9,7 @@ use Porta\ImageViewer\SvgConverter;
 use Porta\ImageViewer\SvgRasterizer;
 use Porta\Plugin\Api\AbstractPlugin;
 use Porta\Plugin\Api\PluginApi;
+use Porta\Support\ProjectPaths;
 use Porta\Widget\EditorPaneWidget;
 
 /**
@@ -82,7 +83,7 @@ return new class('image-viewer') extends AbstractPlugin {
 
         $extensions = array_map(strtolower(...), ImageDecoder::EXTENSIONS);
         $api->registerViewer('image', function (string $path) use ($api, $extensions): bool {
-            $isBitmap = in_array(strtolower(pathinfo($path, \PATHINFO_EXTENSION)), $extensions, strict: true);
+            $isBitmap = ProjectPaths::hasExtension($path, $extensions);
             if (!$isBitmap && !$this->claimsSvg($api, $path)) {
                 return false;
             }

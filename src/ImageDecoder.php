@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Porta\ImageViewer;
 
+use Porta\Support\ProjectPaths;
+
 /**
  * Decodes an image file into truecolor pixels via GD. Palette images (GIF,
  * indexed PNG) are normalized to truecolor so {@see HalfBlockRasterizer} can
@@ -25,7 +27,7 @@ final class ImageDecoder
     /** Whether the path names an image by extension (the viewer's routing test). */
     public static function isImagePath(string $path): bool
     {
-        return \in_array(strtolower(pathinfo($path, \PATHINFO_EXTENSION)), self::EXTENSIONS, strict: true);
+        return ProjectPaths::hasExtension($path, self::EXTENSIONS);
     }
 
     /** Decode the file, or null when the bytes are not a displayable image. */

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Porta\ImageViewer;
 
+use Porta\Support\ProjectPaths;
 use Symfony\Component\Process\ExecutableFinder;
 
 /**
@@ -29,7 +30,7 @@ enum SvgConverter
     /** Whether the path names an SVG (the viewer's routing test, {@see ImageDecoder::isImagePath}'s sibling). */
     public static function isSvgPath(string $path): bool
     {
-        return \in_array(strtolower(pathinfo($path, \PATHINFO_EXTENSION)), self::EXTENSIONS, strict: true);
+        return ProjectPaths::hasExtension($path, self::EXTENSIONS);
     }
 
     public function binaryName(): string
