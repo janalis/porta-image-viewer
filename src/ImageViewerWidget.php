@@ -14,6 +14,7 @@ use Porta\ImageViewer\ZoomPanModel;
 use Porta\Support\DebouncedRequest;
 use Porta\Support\RevoltScheduler;
 use Porta\Support\Scheduler;
+use Porta\Support\Text;
 use Porta\Ui\Glyphs;
 use Porta\Ui\Role;
 use Porta\Ui\Theme\Styles;
@@ -327,7 +328,7 @@ final class ImageViewerWidget extends NavigablePaneWidget
         // A vector tab's banner outranks the focus frame's top border, the graph
         // viewer's rule — a converter error must not hide behind focus chrome.
         if (null !== $this->image && null !== $this->error) {
-            $banner = ' ✗ '.explode("\n", $this->error)[0].' ';
+            $banner = ' ✗ '.Text::firstLine($this->error).' ';
             $lines[0] = AnsiUtils::truncateToWidth($this->styles->of(Role::DiagError)->apply($banner), $cols, pad: true);
         }
 
@@ -352,7 +353,7 @@ final class ImageViewerWidget extends NavigablePaneWidget
         }
         $blank = array_fill(0, max(1, $rows), str_repeat(' ', max(1, $cols)));
         $message = match (true) {
-            null !== $this->error => explode("\n", $this->error)[0],
+            null !== $this->error => Text::firstLine($this->error),
             $this->rasterizing => '⏳ '.$this->translator->trans('rendering…'),
             default => '',
         };
