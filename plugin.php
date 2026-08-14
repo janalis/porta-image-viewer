@@ -8,6 +8,7 @@ use Porta\ImageViewer\ImageViewerWidget;
 use Porta\ImageViewer\SvgConverter;
 use Porta\ImageViewer\SvgRasterizer;
 use Porta\Plugin\Api\AbstractPlugin;
+use Porta\Plugin\Api\LegacyCoreSettings;
 use Porta\Plugin\Api\PluginApi;
 use Porta\Support\ProjectPaths;
 use Porta\Widget\EditorPaneWidget;
@@ -32,18 +33,27 @@ use Porta\Widget\EditorPaneWidget;
  * rasterized by an external converter ({@see SvgConverter}), so with none
  * installed — or with the `svg` setting off, for someone who would rather EDIT
  * their SVGs — the file stays on the text path where it has always been. The
- * converter itself is a CORE setting, read here through coreSetting(): a plugin
- * setting can only be read by the plugin that registered it, and the rasterizer
- * is a core service.
+ * converter path is this plugin's own `svgConverter` setting (a core one
+ * until the plugin owned it; pre-move values adopt once).
  */
 return new class('image-viewer') extends AbstractPlugin {
     public function activate(PluginApi $api): void
     {
         $api->registerSetting('maxBytes', 'Skip images larger than (bytes)', 'int', ImageDecoder::MAX_BYTES);
         $api->registerSetting('svg', 'Render SVG as an image', 'bool', true);
+        // A CORE setting until this plugin owned it (the git-keys precedent);
+        // the rasterizer reads it once here, hence restart-to-apply.
+        $api->registerSetting('svgConverter', 'SVG converter path', hint: 'empty = discover on PATH; takes effect on restart');
+        $legacy = new LegacyCoreSettings($api->projectRoot(), 'image-viewer', ['svgConverter' => 'svgConverter']);
+        $values = $legacy->seed($api->setting(...));
+        $api->onReady(static function () use ($api, $legacy): void {
+            foreach ($legacy->adoptions() as $key => $value) {
+                $api->changeSetting($key, $value);
+            }
+        });
 
         $decoder = new ImageDecoder();
-        $svg = new SvgRasterizer($api->projectRoot(), $this->coreSetting('svgConverter'));
+        $svg = new SvgRasterizer($api->projectRoot(), self::path($values['svgConverter']));
         // The keys this pane binds — declared so Settings → Keymap lists them
         // and .porta.json may rebind them. The DEFAULTS live in the pane's own
         // getDefaultKeybindings(); what core needs is the id and the label.
@@ -97,6 +107,12 @@ return new class('image-viewer') extends AbstractPlugin {
     /** An SVG is the viewer's only if the user wants it AND something can rasterize it. */
     private function claimsSvg(PluginApi $api, string $path): bool
     {
-        return SvgConverter::isSvgPath($path) && (bool) $api->setting('svg') && (null !== $this->coreSetting('svgConverter') || null !== SvgConverter::discover());
+        return SvgConverter::isSvgPath($path) && (bool) $api->setting('svg') && (null !== self::path($api->setting('svgConverter')) || null !== SvgConverter::discover());
+    }
+
+    /** A path setting's '' -to-null: empty means "discover", which the rasterizer spells as null. */
+    private static function path(bool|int|string $value): ?string
+    {
+        return '' !== (string) $value ? (string) $value : null;
     }
 };
