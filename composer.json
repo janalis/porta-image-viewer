@@ -5,7 +5,9 @@
     "license": "MIT",
     "require": {
         "php": ">=8.4",
-        "ext-gd": "*"
+        "ext-gd": "*",
+        "symfony/process": "^8.1",
+        "symfony/tui": "^8.1"
     },
     "autoload": {
         "psr-4": {
