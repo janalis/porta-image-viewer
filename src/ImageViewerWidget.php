@@ -5,12 +5,6 @@ declare(strict_types=1);
 namespace Porta\ImageViewer;
 
 use Porta\I18n\Translator;
-use Porta\ImageViewer\HalfBlockRasterizer;
-use Porta\ImageViewer\ImageData;
-use Porta\ImageViewer\ImageDecoder;
-use Porta\ImageViewer\Rasterizer;
-use Porta\ImageViewer\ScaledSource;
-use Porta\ImageViewer\ZoomPanModel;
 use Porta\Support\DebouncedRequest;
 use Porta\Support\RevoltScheduler;
 use Porta\Support\Scheduler;
@@ -225,7 +219,7 @@ final class ImageViewerWidget extends NavigablePaneWidget
             return; // a bitmap tab has nothing to re-render
         }
         $scale = $this->scaleFor($this->view->effectiveScale($this->lastCols, 2 * $this->lastRows));
-        $this->pending->want($scale, fn (float $value) => $this->rasterize($value));
+        $this->pending->want($scale, $this->rasterize(...));
     }
 
     /** The PNG the converter produced, or null after recording why it is unusable. */
