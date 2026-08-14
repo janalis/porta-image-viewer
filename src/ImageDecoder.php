@@ -21,9 +21,15 @@ final class ImageDecoder
     public const int MAX_BYTES = 20 * 1024 * 1024;
     public const int MAX_PIXELS = 16_000_000;
 
+    /** Resolved once — ext-gd is a suggestion, not a requirement, of the host. */
+    private readonly bool $gdAvailable;
+
     public function __construct(
         private readonly int $maxPixels = self::MAX_PIXELS,
-    ) {}
+        ?bool $gdAvailable = null,
+    ) {
+        $this->gdAvailable = $gdAvailable ?? \function_exists('imagecreatefromstring');
+    }
 
     /** Whether the path names an image by extension (the viewer's routing test). */
     public static function isImagePath(string $path): bool
@@ -44,6 +50,9 @@ final class ImageDecoder
      */
     public function decodeBytes(string $bytes): ?ImageData
     {
+        if (!$this->gdAvailable) {
+            return null; // no GD, no bitmap — the viewer declines like any undecodable file
+        }
         // Arbitrary bytes can't be pre-validated: swallow the warning GD raises
         // on non-image data and rely on the false return below.
         set_error_handler(static fn (): bool => true);

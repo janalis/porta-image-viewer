@@ -72,4 +72,17 @@ final class ImageDecoderTest extends TestCase
         $this->assertNull(new ImageDecoder(maxPixels: 15)->decode($project->path('big.png')), '16 px > 15 px cap');
         $this->assertNotNull(new ImageDecoder(maxPixels: 16)->decode($project->path('big.png')), 'exactly at the cap');
     }
+
+    public function testWithoutGdEveryImageIsPolitelyUndecodable(): void
+    {
+        // ext-gd is a suggestion of the host, not a requirement: on a box
+        // without it the decoder must decline like any undecodable file
+        // instead of fataling on the first missing GD symbol.
+        $project = new TempProject();
+        $gd = imagecreatetruecolor(2, height: 2);
+        imagepng($gd, $project->path('ok.png'));
+
+        $this->assertNull(new ImageDecoder(gdAvailable: false)->decode($project->path('ok.png')));
+        $this->assertNotNull(new ImageDecoder()->decode($project->path('ok.png')), 'the default detects the loaded extension');
+    }
 }
