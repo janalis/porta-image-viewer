@@ -74,20 +74,20 @@ return new class('image-viewer') extends AbstractPlugin {
             // rasterizes that per zoom level, so which pixels depends on the zoom.
             // No size guard on the vector branch: there is no decoder to protect,
             // and the claim's own maxBytes IS the limit.
-            static function (string $path) use ($decoder): mixed {
+            static function (string $path) use ($api, $decoder): mixed {
                 if (SvgConverter::isSvgPath($path)) {
                     $source = (string) file_get_contents($path);
                     if ('' !== $source && !mb_check_encoding($source, encoding: 'UTF-8')) {
-                        throw new \RuntimeException('Not a UTF-8 text file');
+                        throw new \RuntimeException($api->trans('Not a UTF-8 text file'));
                     }
 
                     return $source;
                 }
                 if ((int) filesize($path) > ImageDecoder::MAX_BYTES) {
-                    throw new \RuntimeException('Image too large (> 20 MB)');
+                    throw new \RuntimeException($api->trans('Image too large (> 20 MB)'));
                 }
 
-                return $decoder->decode($path) ?? throw new \RuntimeException('Cannot display image '.basename($path));
+                return $decoder->decode($path) ?? throw new \RuntimeException($api->trans('Cannot display image %file%', ['%file%' => basename($path)]));
             },
         );
 
