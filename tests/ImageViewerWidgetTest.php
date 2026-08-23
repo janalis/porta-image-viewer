@@ -284,6 +284,24 @@ final class ImageViewerWidgetTest extends TestCase
         $this->assertStringContainsString('▀', implode('', $lines), 'the previous raster is still on screen');
     }
 
+    public function testASameTabProbeThatChangesSizeIsFittedFreshNotKept(): void
+    {
+        $this->rasterizer->nextPng = PngFixture::bytes(100, 50);
+        $widget = $this->vectorWidget();
+        $widget->show('/p/a.svg', '<svg viewBox="0 0 100 50"/>');
+        $widget->render(new RenderContext(50, 13));
+        $widget->handleInput('1'); // actual size: away from fit, so a reset is observable
+        $this->assertSame('100%', $widget->zoomLabel());
+
+        // The file changed on disk: same tab, new content, and the converter's
+        // fresh probe reports a DIFFERENT size.
+        $this->rasterizer->nextPng = PngFixture::bytes(300, 150);
+        $widget->show('/p/a.svg', '<svg viewBox="0 0 300 150"><rect/></svg>');
+
+        $this->assertSame('300 × 150', $widget->statusInfo(), 'the new document size, not the old one');
+        $this->assertStringStartsWith('Fit (', $widget->zoomLabel(), 'a differently-sized probe is a new document — fitted fresh, not kept at 100%');
+    }
+
     public function testUndecodableBytesReportInsteadOfBlanking(): void
     {
         $this->rasterizer->nextPng = 'this is not a PNG';

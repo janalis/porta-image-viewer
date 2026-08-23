@@ -94,6 +94,22 @@ final class HalfBlockRasterizerTest extends TestCase
         $this->assertStringContainsString('38;2;172;172;172', $lines[0], 'alpha 64/127 blends white onto 90-gray → 172');
     }
 
+    public function testTheCheckerboardAlternatesEveryEightPixels(): void
+    {
+        // A 9×1 fully-transparent image: pixel 8 sits in the neighbouring 8×8
+        // checker square (x>>3 = 1), which must land on the OTHER shade (140).
+        $gd = imagecreatetruecolor(9, height: 1);
+        imagealphablending($gd, enable: false);
+        imagesavealpha($gd, enable: true);
+        for ($x = 0; $x < 9; ++$x) {
+            imagesetpixel($gd, $x, y: 0, color: (int) imagecolorallocatealpha($gd, red: 255, green: 255, blue: 255, alpha: 127));
+        }
+        $image = new ImageData($gd, 9, 1, 0);
+        $lines = HalfBlockRasterizer::render(SampleSource::original($image), new ZoomPanModel(9, 1), 9, 1);
+
+        $this->assertStringContainsString('38;2;140;140;140', $lines[0], 'the neighbouring 8×8 square is the OTHER checker shade');
+    }
+
     public function testBlankCellsResetBeforeTheSpaceRun(): void
     {
         // Tall 1×4 image in a wide 5×2 pane: fit = min(5, 1) = 1 → single centered column.
