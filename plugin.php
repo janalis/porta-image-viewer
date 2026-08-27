@@ -41,19 +41,29 @@ return new class('image-viewer') extends AbstractPlugin {
     {
         $api->registerSetting('maxBytes', 'Skip images larger than (bytes)', 'int', ImageDecoder::MAX_BYTES);
         $api->registerSetting('svg', 'Render SVG as an image', 'bool', true);
-        // A CORE setting until this plugin owned it (the git-keys precedent);
-        // the rasterizer reads it once here, hence restart-to-apply.
-        $api->registerSetting('svgConverter', 'SVG converter path', hint: 'empty = discover on PATH; takes effect on restart');
+        // A CORE setting until this plugin owned it (the git-keys precedent).
+        // The rasterizer resolves it per conversion, so an edit applies live.
+        $api->registerSetting('svgConverter', 'SVG converter path', hint: 'empty = discover on PATH');
         $legacy = new LegacyCoreSettings($api->projectRoot(), 'image-viewer', ['svgConverter' => 'svgConverter']);
-        $values = $legacy->seed($api->setting(...));
         $api->onReady(static function () use ($api, $legacy): void {
             foreach ($legacy->adoptions() as $key => $value) {
                 $api->changeSetting($key, $value);
             }
         });
+        // What a pre-move core key still answers, dropped the moment the
+        // plugin's own key is written — the adoption is a boot snapshot of the
+        // file, so keeping it would shadow a later edit forever.
+        $adopted = $legacy->adoptions();
+        // By REFERENCE, and never an arrow fn: a by-value capture would keep
+        // answering with the adopted value after the hook below cleared it.
+        $api->onSettingChanged(static function (string $key) use (&$adopted): void {
+            unset($adopted[$key]);
+        });
 
         $decoder = new ImageDecoder();
-        $svg = new SvgRasterizer($api->projectRoot(), self::path($values['svgConverter']));
+        $svg = new SvgRasterizer($api->projectRoot(), static function () use (&$adopted, $api): ?string {
+            return self::path($adopted['svgConverter'] ?? $api->setting('svgConverter'));
+        });
         // The keys this pane binds — declared so Settings → Keymap lists them
         // and .porta.json may rebind them. The DEFAULTS live in the pane's own
         // getDefaultKeybindings(); what core needs is the id and the label.

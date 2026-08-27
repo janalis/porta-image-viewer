@@ -20,10 +20,15 @@ use Symfony\Component\Process\ExecutableFinder;
  */
 final class SvgRasterizer implements Rasterizer
 {
+    /**
+     * @param null|(\Closure(): ?string)|string $converterPath the "SVG converter" setting; '' resolves to
+     *                                                         null (auto-discover). A CLOSURE is read per
+     *                                                         call, so a Settings edit applies without a
+     *                                                         restart — the AbstractToolPlugin::binary() idiom
+     */
     public function __construct(
         private readonly string $rootDir,
-        // The "SVG converter" setting; '' resolves to null (auto-discover).
-        private readonly ?string $converterPath = null,
+        private readonly \Closure|string|null $converterPath = null,
         private readonly SingleSlotProcess $slot = new SingleSlotProcess(),
     ) {}
 
@@ -59,7 +64,7 @@ final class SvgRasterizer implements Rasterizer
      */
     private function resolve(): array
     {
-        $configured = trim((string) $this->converterPath);
+        $configured = trim((string) ($this->converterPath instanceof \Closure ? ($this->converterPath)() : $this->converterPath));
         if ('' !== $configured) {
             return [$configured, SvgConverter::forBinary($configured)];
         }

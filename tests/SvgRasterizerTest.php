@@ -167,6 +167,23 @@ final class SvgRasterizerTest extends TestCase
         $this->assertSame(self::stub(), new SvgRasterizer(sys_get_temp_dir(), self::stub())->binary());
     }
 
+    public function testAClosurePathIsReReadPerCallSoASettingsEditApplies(): void
+    {
+        // The plugin hands a closure over its `svgConverter` setting rather
+        // than a resolved string, which is what makes the setting live;
+        // memoizing the first answer would make it restart-required again.
+        putenv('PATH=/nonexistent');
+        $configured = null;
+        $rasterizer = new SvgRasterizer(sys_get_temp_dir(), static function () use (&$configured): ?string {
+            return $configured;
+        });
+        $this->assertNull($rasterizer->binary(), 'nothing configured, nothing on PATH');
+
+        $configured = self::stub();
+
+        $this->assertSame(self::stub(), $rasterizer->binary(), 'the new value is picked up with no rebuild');
+    }
+
     public function testARealConverterRendersTheDocument(): void
     {
         $this->skipWithoutSvgConverter();
