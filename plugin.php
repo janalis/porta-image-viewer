@@ -39,7 +39,13 @@ use Porta\Widget\EditorPaneWidget;
 return new class('image-viewer') extends AbstractPlugin {
     public function activate(PluginApi $api): void
     {
-        $api->registerSetting('maxBytes', 'Skip images larger than (bytes)', 'int', ImageDecoder::MAX_BYTES);
+        // The hint names the decoder backstop because this setting is about
+        // ROUTING, not decoding: raising it past 20 MB claims a bigger bitmap
+        // so the refusal comes from the viewer ("Image too large") instead of
+        // the text path's "Not a UTF-8 text file", which is the point — but it
+        // does not make one displayable, and without saying so the row reads
+        // like a cap that simply does not work.
+        $api->registerSetting('maxBytes', 'Skip images larger than (bytes)', 'int', ImageDecoder::MAX_BYTES, hint: 'routing only; bitmaps over 20 MB are refused by the decoder either way');
         $api->registerSetting('svg', 'Render SVG as an image', 'bool', true);
         // A CORE setting until this plugin owned it (the git-keys precedent).
         // The rasterizer resolves it per conversion, so an edit applies live.
