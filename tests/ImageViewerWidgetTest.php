@@ -114,6 +114,55 @@ final class ImageViewerWidgetTest extends TestCase
         $this->assertSame('image', $widget->paneId());
     }
 
+    public function testTheRasterIsMemoizedUntilTheViewTheGeometryOrTheImageChanges(): void
+    {
+        // 2 imagecolorat() calls per cell per frame: a toast or a diagnostics
+        // push invalidates the widget, and the identical picture re-rasterized
+        // on every such frame (the 300-486ms slow-paints in perf.log).
+        $widget = new ImageViewerWidget(new FakeRasterizer(), new Translator('en'));
+        $widget->show('/p/a.png', $this->gradient());
+        $context = new RenderContext(20, 6);
+
+        $first = $widget->render($context);
+        $this->assertSame($first, $widget->render($context), 'an unchanged frame serves the memo');
+
+        $widget->handleInput('='); // zoom: the view fingerprint moves
+        $zoomed = $widget->render($context);
+        $this->assertNotSame(implode('', $first), implode('', $zoomed), 'a zoom re-rasterizes');
+
+        $this->assertNotSame($zoomed, $widget->render(new RenderContext(24, 6)), 'a resize re-rasterizes');
+
+        // A DIFFERENT image with identical dimensions, view and geometry: the
+        // generation counter is what must miss — an object-identity key could
+        // be fooled by allocator reuse, a keyless memo would show stale pixels.
+        $gd = imagecreatetruecolor(64, height: 8); // flat black, unlike the gradient
+        $widget->show('/p/b.png', new ImageData($gd, 64, 8, 124));
+        $replacedFirst = $widget->render($context);
+        $this->assertNotSame(implode('', $first), implode('', $replacedFirst), 'a replaced image must not serve the previous picture');
+    }
+
+    public function testADeferredVectorRefinementRastersItsNewPixelsNotTheMemo(): void
+    {
+        // The paint-then-refine delivery swaps the image with the view and the
+        // geometry UNCHANGED — the image generation is the only thing that can
+        // miss the raster memo there (show() paths clear it via reset()).
+        $this->rasterizer->nextPng = PngFixture::bytes(100, 50); // the red probe
+        $widget = $this->vectorWidget();
+        $widget->show('/p/a.svg', '<svg viewBox="0 0 100 50"/>');
+        $context = new RenderContext(50, 13);
+        $widget->render($context);
+
+        $widget->handleInput('='); // fit 0.5 → 1.0 (still the probe's own resolution)
+        $widget->handleInput('='); // → 2.0: a sharper raster is now wanted
+        $zoomed = implode('', $widget->render($context)); // still the red probe, magnified
+        $this->assertStringContainsString('38;2;200;40;40', $zoomed);
+
+        $this->rasterizer->nextPng = PngFixture::bytes(200, 100, [40, 200, 40]); // the green refinement
+        $this->settle();
+        $refined = implode('', $widget->render($context));
+        $this->assertStringContainsString('38;2;40;200;40', $refined, 'the refined raster shows — a stale memo would keep the probe');
+    }
+
     public function testShowsAnImageAndZoomKeysDriveTheLabel(): void
     {
         $widget = new ImageViewerWidget(new FakeRasterizer(), new Translator('en'));

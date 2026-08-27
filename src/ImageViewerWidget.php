@@ -33,6 +33,18 @@ final class ImageViewerWidget extends NavigablePaneWidget
     private ?string $svgPath = null;
     /** The scale the shown raster was rendered at — its pixels per document pixel. */
     private float $rasterScale = 1.0;
+
+    /**
+     * Raster memo: the ▀-cell rasterization does 2 imagecolorat() calls per
+     * cell (20k GD calls and ~10k 24-bit SGRs for a 200×50 pane) and used to
+     * re-run on EVERY widget invalidation — a toast, a diagnostics push, the
+     * focus frame. Keyed on the image generation (not spl_object_id, which GC
+     * can reuse), the view fingerprint and the geometry.
+     */
+    /** @var list<string>|null */
+    private ?array $rasterMemo = null;
+    private string $rasterKey = '';
+    private int $imageGeneration = 0;
     /** Coalesces and debounces the re-render the current zoom wants. */
     private readonly DebouncedRequest $pending;
     private bool $rasterizing = false;
@@ -81,6 +93,7 @@ final class ImageViewerWidget extends NavigablePaneWidget
     private function showBitmap(ImageData $image): void
     {
         $this->reset();
+        ++$this->imageGeneration;
         $this->image = $image;
         $this->view = new ZoomPanModel($image->width, $image->height);
         $this->invalidate();
@@ -127,6 +140,8 @@ final class ImageViewerWidget extends NavigablePaneWidget
     /** Forget everything about the shown document — the shared head of show/showVector/clear. */
     private function reset(): void
     {
+        ++$this->imageGeneration;
+        $this->rasterMemo = null; // free the previous pane's raster promptly
         $this->image = null;
         $this->view = null;
         $this->svg = null;
@@ -162,6 +177,7 @@ final class ImageViewerWidget extends NavigablePaneWidget
                 if (null === $image) {
                     return;
                 }
+                ++$this->imageGeneration;
                 $this->image = $image;
                 $this->rasterScale = $scale ?? 1.0;
                 // Only a PROBE may (re)establish what the document's size is:
@@ -286,12 +302,18 @@ final class ImageViewerWidget extends NavigablePaneWidget
     private function contentLines(int $cols, int $rows): array
     {
         if (null !== $this->image && null !== $this->view) {
-            return HalfBlockRasterizer::render(
-                $this->scaled->forScale($this->image, $this->view->effectiveScale($cols, 2 * $rows), ratio: $this->rasterScale),
-                $this->view,
-                $cols,
-                $rows,
-            );
+            $key = $this->imageGeneration.':'.$this->view->stateKey().':'.$cols.':'.$rows;
+            if (null === $this->rasterMemo || $key !== $this->rasterKey) {
+                $this->rasterKey = $key;
+                $this->rasterMemo = HalfBlockRasterizer::render(
+                    $this->scaled->forScale($this->image, $this->view->effectiveScale($cols, 2 * $rows), ratio: $this->rasterScale),
+                    $this->view,
+                    $cols,
+                    $rows,
+                );
+            }
+
+            return $this->rasterMemo;
         }
         $message = match (true) {
             null !== $this->error => Text::firstLine($this->error),

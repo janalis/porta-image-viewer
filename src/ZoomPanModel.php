@@ -45,6 +45,16 @@ final class ZoomPanModel
         return $this->scale ?? min($cols / $this->imgW, $pxRows / $this->imgH);
     }
 
+    /**
+     * A fingerprint of everything that changes what a rasterization of this
+     * view would produce — the widget's render memo keys on it, so every
+     * zoom/pan mutator is covered by construction.
+     */
+    public function stateKey(): string
+    {
+        return ($this->scale ?? -1.0).':'.$this->panX.':'.$this->panY;
+    }
+
     public function zoomIn(int $cols, int $pxRows): void
     {
         $new = $this->step($this->effectiveScale($cols, $pxRows), 1);
