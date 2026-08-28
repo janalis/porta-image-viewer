@@ -255,7 +255,7 @@ final class IdeImageViewerTest extends TestCase
             $project,
             $project->path('a.php'),
             [
-                200 => function ($tui, $terminal, $ide) use ($project): void {
+                200 => static function ($tui, $terminal, $ide) use ($project): void {
                     Services::resolve($ide, BufferService::class)
                         ->openFile($project->path('img.png'), OpenFocus::Editor);
                     $tui->handleInput("\x1b[102;6u"); // ctrl+shift+f → find in files
