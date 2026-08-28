@@ -45,7 +45,19 @@ return new class('image-viewer') extends AbstractPlugin {
         // the text path's "Not a UTF-8 text file", which is the point — but it
         // does not make one displayable, and without saying so the row reads
         // like a cap that simply does not work.
-        $api->registerSetting('maxBytes', 'Skip images larger than (bytes)', 'int', ImageDecoder::MAX_BYTES, hint: 'routing only; bitmaps over 20 MB are refused by the decoder either way');
+        // Stepping a byte cap ONE BYTE at a time is unusable: 20 MB is
+        // 20,971,520 keypresses from zero. A mebibyte per press, floored at 0
+        // (claim nothing) and capped at 256 MiB.
+        $api->registerSetting(
+            'maxBytes',
+            'Skip images larger than (bytes)',
+            'int',
+            ImageDecoder::MAX_BYTES,
+            hint: 'routing only; bitmaps over 20 MB are refused by the decoder either way',
+            min: 0,
+            max: 268_435_456,
+            step: 1_048_576,
+        );
         $api->registerSetting('svg', 'Render SVG as an image', 'bool', true);
         // A CORE setting until this plugin owned it (the git-keys precedent).
         // The rasterizer resolves it per conversion, so an edit applies live.
