@@ -39,11 +39,13 @@ namespace Porta\ImageViewer;
  * per scale. The second stage then reads a few hundred thousand pixels instead
  * of millions: 31ms becomes 3ms, and a zoom frame costs what a pan frame costs.
  *
- * Averaging twice is not averaging once, and the difference is measurable and
- * invisible: against a direct resample of a line-art graph, a mean absolute
- * error of 3/255 per channel. The oversample floor is what keeps it there — the
- * second stage must always be shrinking by at least 2×, never magnifying a
- * coarse level back up, which would genuinely lose detail.
+ * Averaging twice is not averaging once, and two rules keep the difference
+ * invisible. The oversample floor: the second stage must always be shrinking by
+ * at least 2×, never magnifying a coarse level back up, which would genuinely
+ * lose detail. And the pixel budget: stop halving once a level is already cheap
+ * to read, because every further halving quantises a dimension for no gain —
+ * without it a 97×5011 image drifts 7.7/255 from a single-stage resample, and
+ * with it the worst of 54 shape/scale pairs is 1.7.
  *
  * The levels cost a third of the image on top of it (¼ + ¹⁄₁₆ + …) and are
  * dropped with it, so the class still holds one image's worth of pixels and the
@@ -57,6 +59,20 @@ final class ScaledSource
      * block, and below it the "average" would be reading some pixels twice.
      */
     private const int MIN_OVERSAMPLE = 2;
+
+    /**
+     * How big a level may be and still be worth sampling directly.
+     *
+     * The chain exists to bound the pixels READ, so this bounds them directly:
+     * once a level is down to this, resampling from it already costs ~2.5ms and
+     * halving again buys nothing — while each halving TAKES something, because
+     * an integer halving of a dimension that is already small quantises and
+     * truncates. Measured over 54 shape/scale pairs against a single-stage
+     * resample: unbounded the worst case is 7.7/255 (a 97×5011 image, whose
+     * narrow axis gets halved to nothing), and at this budget it is 1.7. Above
+     * it the curve is flat — 1M and 1.6M give the identical level.
+     */
+    private const int LEVEL_PIXELS = 600_000;
 
     private ?ImageData $source = null;
     private float $scale = 0.0;
@@ -132,10 +148,10 @@ final class ScaledSource
         return $level;
     }
 
-    /** Would halving $level leave it still oversampling a $width × $height target? */
+    /** Is $level both big enough to be worth halving, and still oversampling a $width × $height target afterwards? */
     private static function worthHalving(ImageData $level, int $width, int $height): bool
     {
-        return $level->width >= (2 * self::MIN_OVERSAMPLE * $width) && $level->height >= (2 * self::MIN_OVERSAMPLE * $height);
+        return ($level->width * $level->height) > self::LEVEL_PIXELS && $level->width >= (2 * self::MIN_OVERSAMPLE * $width) && $level->height >= (2 * self::MIN_OVERSAMPLE * $height);
     }
 
     /** One area-averaged copy of $from at exactly $width × $height. */

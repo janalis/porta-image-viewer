@@ -119,32 +119,70 @@ final class ScaledSourceTest extends TestCase
         return new ImageData($gd, $width, $height, 0);
     }
 
+    /** One single-stage copy of $image, for the staged one to be measured against. */
+    private function directResample(ImageData $image, int $width, int $height): ImageData
+    {
+        $canvas = imagecreatetruecolor($width, height: $height);
+        imagealphablending($canvas, enable: false);
+        imagesavealpha($canvas, enable: true);
+        imagecopyresampled($canvas, $image->gd, dst_x: 0, dst_y: 0, src_x: 0, src_y: 0, dst_width: $width, dst_height: $height, src_width: $image->width, src_height: $image->height);
+
+        return new ImageData($canvas, $width, $height, 0);
+    }
+
     /**
-     * The staging is a PERFORMANCE change and must not be a picture change.
-     * Averaging twice is not averaging once, and MIN_OVERSAMPLE is the dial
-     * that decides how far apart they land: on this fixture a floor of 2 keeps
-     * the error at 2.3/255 and a floor of 1 — halving until a level merely
-     * MATCHES the target, so the last stage averages nothing — pushes it to
-     * 3.8. Line art at a size that halves untidily is where the difference
-     * shows at all; a tidy grid cannot tell the two apart.
+     * The staging is a PERFORMANCE change and must not be a picture change, and
+     * the PIXEL BUDGET is what keeps it one. Halving past the point where a
+     * level is already cheap to read buys nothing and costs precision, because
+     * an integer halving of a dimension that is already small quantises and
+     * truncates. This tall fixture is where that shows: with the budget the
+     * chain stops at one halving and the copy lands 0.02/255 from a direct
+     * resample, and without it a second halving of the 300-wide axis pushes it
+     * to 5.2 — measured, both.
      */
     public function testAStagedCopyIsIndistinguishableFromASingleStageOne(): void
     {
-        $image = $this->lineArt(1000, 700);
-        $staged = new ScaledSource()->forScale($image, 37 / 1000);
+        $image = $this->lineArt(300, 5000);
+        $staged = new ScaledSource()->forScale($image, 0.1);
         [$width, $height] = [$staged->image->width, $staged->image->height];
 
-        $direct = imagecreatetruecolor($width, $height);
-        imagealphablending($direct, enable: false);
-        imagesavealpha($direct, enable: true);
-        imagecopyresampled($direct, $image->gd, dst_x: 0, dst_y: 0, src_x: 0, src_y: 0, dst_width: $width, dst_height: $height, src_width: 1000, src_height: 700);
-
-        $this->assertSame([37, 26], [$width, $height]);
+        $this->assertSame([30, 500], [$width, $height]);
         $this->assertLessThan(
-            3.0,
-            $this->meanAbsoluteDifference($staged->image, new ImageData($direct, $width, $height, 0)),
-            'the staged copy must stay within a level or two of 255 of the direct one',
+            1.0,
+            $this->meanAbsoluteDifference($staged->image, $this->directResample($image, $width, $height)),
+            'the staged copy must be indistinguishable from the direct one',
         );
+    }
+
+    /**
+     * Which side of the budget "already cheap" falls on. A 1000×600 image is
+     * exactly LEVEL_PIXELS, and the rule reads as "bigger than this is worth
+     * halving" — so this one is not, and nothing is built. Nothing else in the
+     * suite can tell `>` from `>=` here, because no other fixture lands on the
+     * boundary.
+     */
+    public function testALevelExactlyAtTheBudgetIsAlreadySmallEnough(): void
+    {
+        $scaled = new ScaledSource();
+        $scaled->forScale($this->lineArt(1000, 600), 0.1);
+
+        $this->assertSame([], Probe::get($scaled, 'levels'));
+    }
+
+    /**
+     * The other half, and the failure the budget cannot catch: a level must
+     * never be MAGNIFIED back up to the target. Here nothing may be halved at
+     * all — a third of a 900-wide image is 300 wide, and the one halving that
+     * the budget would allow is 450, only 1.5× the target. A floor of 1 builds
+     * that level and samples from it.
+     */
+    public function testATargetTooBigToAverageIsTakenFromTheImageItself(): void
+    {
+        $scaled = new ScaledSource();
+        $copy = $scaled->forScale($this->lineArt(900, 900), 1 / 3);
+
+        $this->assertSame(300, $copy->image->width);
+        $this->assertSame([], Probe::get($scaled, 'levels'), 'no halving is close enough to 300 to average from');
     }
 
     /**
@@ -156,7 +194,7 @@ final class ScaledSourceTest extends TestCase
      */
     public function testTheHalvingsAreBuiltPerImageNotPerScale(): void
     {
-        $image = $this->lineArt(640, 640);
+        $image = $this->lineArt(1600, 1600);
         $scaled = new ScaledSource();
 
         $scaled->forScale($image, 0.03);
@@ -180,43 +218,46 @@ final class ScaledSourceTest extends TestCase
      */
     public function testZoomingBackInClimbsTheHalvingsItAlreadyBuilt(): void
     {
-        $image = $this->lineArt(640, 640);
+        $image = $this->lineArt(1600, 1600);
         $scaled = new ScaledSource();
         $scaled->forScale($image, 0.03);
         $built = Probe::get($scaled, 'levels');
-        $this->assertSame([320, 160, 80, 40], array_map(static fn (ImageData $level): int => $level->width, $built));
+        $this->assertSame([800, 400], array_map(static fn (ImageData $level): int => $level->width, $built));
 
-        // 128 wide: the 320 halving still oversamples it, the 160 one does not.
+        // 320 wide: the 800 halving still oversamples it (2.5×), the 400 one
+        // does not — sampling THAT would be a 1.25× copy that averages nothing.
         $climbed = $scaled->forScale($image, 0.2)->image;
-        $this->assertSame(128, $climbed->width);
-        // 256 wide: nothing oversamples it, so the image itself is the source.
-        $this->assertSame(256, $scaled->forScale($image, 0.4)->image->width);
+        $this->assertSame(320, $climbed->width);
+        // 480 wide: nothing oversamples it, so the image itself is the source.
+        $wider = $scaled->forScale($image, 0.3)->image;
+        $this->assertSame(480, $wider->width);
         $this->assertSame($built, Probe::get($scaled, 'levels'), 'climbing back up must build nothing');
 
         // The sizes above hold whichever level the pixels came from — they are
-        // computed off the original either way — so only the PICTURE says the
-        // climb happened. Measured against a direct resample: climbing lands at
-        // 3.5/255, and reading from the 40-wide level instead (a 3× MAGNIFY of
-        // it) lands at 21.6.
-        $direct = imagecreatetruecolor(128, height: 128);
-        imagealphablending($direct, enable: false);
-        imagesavealpha($direct, enable: true);
-        imagecopyresampled($direct, $image->gd, dst_x: 0, dst_y: 0, src_x: 0, src_y: 0, dst_width: 128, dst_height: 128, src_width: 640, src_height: 640);
+        // computed off the ORIGINAL either way — so only the picture says the
+        // climb happened, and both rungs are measured. Failing to climb reads
+        // 320 out of the 400 level (1.25×, averaging nothing): 1.9/255 becomes
+        // 4.5. And 480 out of it is an outright MAGNIFY: 0.0 becomes 6.3.
         $this->assertLessThan(
-            8.0,
-            $this->meanAbsoluteDifference($climbed, new ImageData($direct, 128, 128, 0)),
-            'the copy must be an average of a finer level, not a blow-up of a coarser one',
+            3.0,
+            $this->meanAbsoluteDifference($climbed, $this->directResample($image, 320, 320)),
+            'the copy must be an average of a finer level, not a 1.25× copy of a coarser one',
+        );
+        $this->assertLessThan(
+            1.0,
+            $this->meanAbsoluteDifference($wider, $this->directResample($image, 480, 480)),
+            'a target no level oversamples comes from the image, never from a blow-up',
         );
     }
 
     public function testANewImageDropsTheHalvingsWithIt(): void
     {
         $scaled = new ScaledSource();
-        $scaled->forScale($this->lineArt(640, 640), 0.03);
+        $scaled->forScale($this->lineArt(1600, 1600), 0.03);
         $this->assertNotSame([], Probe::get($scaled, 'levels'));
 
-        $scaled->forScale($this->lineArt(320, 320), 0.03);
-        $this->assertSame([160, 80, 40, 20], array_map(static fn (ImageData $level): int => $level->width, Probe::get($scaled, 'levels')));
+        $scaled->forScale($this->lineArt(1024, 1024), 0.03);
+        $this->assertSame([512], array_map(static fn (ImageData $level): int => $level->width, Probe::get($scaled, 'levels')));
     }
 
     /**
