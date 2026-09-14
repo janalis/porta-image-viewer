@@ -100,7 +100,7 @@ final class SvgRasterizerTest extends TestCase
     {
         $rasterizer = new SvgRasterizer(\sys_get_temp_dir(), self::stub());
         $fired = [];
-        $onError = static function (string $message): void {
+        $onError = static function (string $message): never {
             self::fail("unexpected rasterize error: {$message}");
         };
         $rasterizer->rasterize(
@@ -150,7 +150,7 @@ final class SvgRasterizerTest extends TestCase
         $rasterizer->rasterize(
             self::SMALL_SVG,
             null,
-            static function (): void {
+            static function (): never {
                 self::fail('onPng must not fire without a converter');
             },
             static function (string $message) use (&$error): void {

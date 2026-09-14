@@ -11,6 +11,7 @@ use Porta\Editor\BufferNavigator;
 use Porta\Editor\BufferService;
 use Porta\Editor\EditorPanes;
 use Porta\Editor\OpenFocus;
+use Porta\Ide;
 use Porta\Tests\Support\ClearsPortaLsp;
 use Porta\Tests\Support\PngFixture;
 use Porta\Tests\Support\PreservesPath;
@@ -21,6 +22,8 @@ use Porta\Tests\Support\TempProject;
 use Porta\Tests\Support\UsesBundledPlugins;
 use Porta\Widget\CodeEditorWidget;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
+use Symfony\Component\Tui\Terminal\VirtualTerminal;
+use Symfony\Component\Tui\Tui;
 
 /**
  * The inline image viewer: half-block rendering, zoom/pan, tab
@@ -65,7 +68,7 @@ final class IdeImageViewerTest extends TestCase
             $project,
             $project->path('img.png'),
             [
-                200 => function ($tui, $terminal, $ide): void {
+                200 => function ($tui, $terminal, Ide $ide): void {
                     $pane = Services::resolve($ide, EditorPanes::class)->paneFor('image');
                     $this->assertNotNull($pane, 'the bundled plugin registered its pane');
                     $this->assertInstanceOf(BufferNavigator::class, Probe::get($pane, 'handler'));
@@ -83,7 +86,7 @@ final class IdeImageViewerTest extends TestCase
             $project,
             $project->path('img.png'),
             [
-                200 => function ($tui, $terminal): void {
+                200 => function (Tui $tui, $terminal): void {
                     $this->frame($tui);
                     $this->assertSame('image-viewer', $tui->getFocus()?->getId(), 'the viewer takes editor-area focus');
                     $output = $terminal->getOutput();
@@ -95,7 +98,7 @@ final class IdeImageViewerTest extends TestCase
                     $this->assertStringContainsString('Fit', $output, 'fit zoom label');
                     $tui->handleInput('='); // zoom in one ladder step
                 },
-                340 => function ($tui, $terminal): void {
+                340 => function (Tui $tui, $terminal): void {
                     $this->frame($tui);
                     $this->assertStringContainsString('100%', $terminal->getOutput(), 'zoomed to the next step');
                     // Pan with arrows; wheel + click routing over the image pane.
@@ -106,7 +109,7 @@ final class IdeImageViewerTest extends TestCase
                     $tui->handleInput("\x1b[<0;80;10m");
                     $tui->handleInput("\x1b[<80;80;10M"); // ctrl+wheel up → zoom in toward the pointer
                 },
-                480 => function ($tui, $terminal): void {
+                480 => function (Tui $tui, VirtualTerminal $terminal): void {
                     $this->frame($tui);
                     $this->assertStringContainsString('200%', $terminal->getOutput(), 'ctrl+wheel zoomed a ladder step');
                     $tui->handleInput("\x1b[<81;80;10M"); // ctrl+wheel down → back out
@@ -183,7 +186,7 @@ final class IdeImageViewerTest extends TestCase
             $project,
             $project->path('a.php'),
             [
-                200 => function ($tui, $terminal, $ide) use ($project): void {
+                200 => function (Tui $tui, $terminal, Ide $ide) use ($project): void {
                     $service = Services::resolve($ide, BufferService::class);
                     $service->openFile($project->path('img.png'), OpenFocus::Editor);
                     $this->frame($tui);
@@ -194,7 +197,7 @@ final class IdeImageViewerTest extends TestCase
                     $tui->handleInput("\x13");
                     $service->saveCurrentFile();
                 },
-                340 => function ($tui, $terminal, $ide) use ($project, $png): void {
+                340 => function (Tui $tui, $terminal, $ide) use ($project, $png): void {
                     $this->assertSame($png, (string) \file_get_contents($project->path('img.png')), 'saving never writes over the image');
                     $tui->handleInput("\x1b[1;5D"); // ctrl+left → back to the code tab
                     $this->frame($tui);
@@ -202,7 +205,7 @@ final class IdeImageViewerTest extends TestCase
                     $this->assertNotNull($tui->getById('editor')->getContext(), 'the editor is re-attached');
                     $tui->handleInput("\x1b[1;5C"); // ctrl+right → the image again
                 },
-                480 => function ($tui, $terminal, $ide) use ($project): void {
+                480 => function (Tui $tui, VirtualTerminal $terminal, Ide $ide) use ($project): void {
                     $this->frame($tui);
                     $this->assertSame('image-viewer', $tui->getFocus()?->getId());
                     // An external change re-decodes on the next poll; garbage keeps the old pixels.
@@ -220,7 +223,7 @@ final class IdeImageViewerTest extends TestCase
                     $this->assertSame(16, $buffers->active()?->panePayload?->width, 'undecodable bytes keep the old pixels');
                     $tui->handleInput("\x1bw"); // alt+w → close the image tab
                 },
-                620 => function ($tui, $terminal): void {
+                620 => function (Tui $tui, $terminal): void {
                     $this->frame($tui);
                     $this->assertStringEndsWith('a.php', (string) $tui->getById('editor')->getFilePath(), 'closing the image tab restores the editor');
                     $this->assertNotNull($tui->getById('editor')->getContext());
@@ -241,7 +244,7 @@ final class IdeImageViewerTest extends TestCase
             $project,
             $project->path('img.png'),
             [
-                200 => function ($tui, $terminal): void {
+                200 => function (Tui $tui, VirtualTerminal $terminal): void {
                     $tui->handleInput("\x1b[101;6u"); // ctrl+shift+e → search everywhere
                     $tui->handleInput("\x1b[102;6u"); // ctrl+shift+f → find in files (same guard)
                     $this->awaitPainted($tui, $terminal, 'Not available in this view');
@@ -255,12 +258,12 @@ final class IdeImageViewerTest extends TestCase
             $project,
             $project->path('a.php'),
             [
-                200 => static function ($tui, $terminal, $ide) use ($project): void {
+                200 => static function ($tui, $terminal, Ide $ide) use ($project): void {
                     Services::resolve($ide, BufferService::class)
                         ->openFile($project->path('img.png'), OpenFocus::Editor);
                     $tui->handleInput("\x1b[102;6u"); // ctrl+shift+f → find in files
                 },
-                340 => function ($tui, $terminal): void {
+                340 => function (Tui $tui, $terminal): void {
                     $this->frame($tui);
                     $this->assertStringEndsWith('a.php', (string) $tui->getById('editor')->getFilePath(), 'hopped to the text tab');
                     $this->assertStringContainsString('Find in Files', AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'the modal opened over it');
@@ -289,7 +292,7 @@ final class IdeImageViewerTest extends TestCase
             $project,
             null,
             [
-                200 => function ($tui, $terminal, $ide) use ($project): void {
+                200 => function (Tui $tui, VirtualTerminal $terminal, Ide $ide) use ($project): void {
                     $service = Services::resolve($ide, BufferService::class);
                     $service->openFile($project->path('big.png'));
                     $this->awaitPainted($tui, $terminal, 'Image too large (> 20 MB)');
@@ -301,7 +304,7 @@ final class IdeImageViewerTest extends TestCase
                     $service->openFile($project->path('img.png'), OpenFocus::Editor);
                     $tui->handleInput("\x1bw");
                 },
-                340 => function ($tui): void {
+                340 => function (Tui $tui): void {
                     $this->frame($tui);
                     $this->assertNull($tui->getById('editor')->getFilePath(), 'empty editor after the last tab closed');
                     $this->assertNotNull($tui->getById('editor')->getContext(), 'editor pane restored');
@@ -334,7 +337,7 @@ final class IdeImageViewerTest extends TestCase
             $project,
             $project->path('img.png'),
             [
-                200 => function ($tui, $terminal, $ide) use ($project): void {
+                200 => function (Tui $tui, VirtualTerminal $terminal, Ide $ide) use ($project): void {
                     $this->awaitPainted($tui, $terminal, '64 × 64');
                     $this->assertStringContainsString('64 × 64', AnsiUtils::stripAnsiCodes($terminal->getOutput()));
 
@@ -413,7 +416,7 @@ final class IdeImageViewerTest extends TestCase
             $project,
             $project->path('logo.svg'),
             [
-                200 => function ($tui, $terminal, $ide) use ($project): void {
+                200 => function (Tui $tui, $terminal, Ide $ide) use ($project): void {
                     $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '100 × 50'), what: 'the rasterized SVG');
                     $this->assertSame('image-viewer', $tui->getFocus()?->getId(), 'an SVG takes the image pane');
 
@@ -452,7 +455,7 @@ final class IdeImageViewerTest extends TestCase
             $project,
             $project->path('logo.svg'),
             [
-                200 => function ($tui, $terminal, $ide) use ($project): void {
+                200 => function ($tui, $terminal, Ide $ide) use ($project): void {
                     $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '100 × 50'), what: 'the first raster');
 
                     // Change the document on disk and re-open it explicitly: the
@@ -483,7 +486,7 @@ final class IdeImageViewerTest extends TestCase
             $project,
             $project->path('logo.svg'),
             [
-                200 => function ($tui, $terminal, $ide) use ($project): void {
+                200 => function ($tui, $terminal, Ide $ide) use ($project): void {
                     $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '100 × 50'), what: 'the first raster');
 
                     \file_put_contents($project->path('logo.svg'), data: '<svg data-w="70" viewBox="0 0 70 35"/>');
@@ -529,7 +532,7 @@ final class IdeImageViewerTest extends TestCase
             $project,
             $project->path('logo.svg'),
             [
-                200 => function ($tui, $terminal, $ide): void {
+                200 => function ($tui, $terminal, Ide $ide): void {
                     $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '100 × 50'), what: 'the rasterized SVG');
                     $this->assertSame('image-viewer', $tui->getFocus()?->getId());
 
@@ -551,7 +554,7 @@ final class IdeImageViewerTest extends TestCase
             $project,
             $project->path('logo.svg'),
             [
-                200 => function ($tui, $terminal): void {
+                200 => function (Tui $tui, $terminal): void {
                     $this->frame($tui);
                     $this->assertSame('editor', $tui->getFocus()?->getId(), 'the text path, as before');
                     $this->assertStringContainsString('<svg', AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'the XML is editable');
@@ -574,7 +577,7 @@ final class IdeImageViewerTest extends TestCase
             $project,
             $project->path('logo.svg'),
             [
-                200 => function ($tui, $terminal): void {
+                200 => function (Tui $tui, $terminal): void {
                     $this->frame($tui);
                     $this->assertSame('editor', $tui->getFocus()?->getId(), 'someone who edits SVGs turns the claim off');
                     $this->assertStringContainsString('<svg', AnsiUtils::stripAnsiCodes($terminal->getOutput()));
