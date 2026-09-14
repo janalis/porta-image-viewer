@@ -55,19 +55,19 @@ final class ImageDecoder
         }
         // Arbitrary bytes can't be pre-validated: swallow the warning GD raises
         // on non-image data and rely on the false return below.
-        set_error_handler(static fn (): bool => true);
-        $gd = imagecreatefromstring($bytes);
-        restore_error_handler();
+        \set_error_handler(static fn (): bool => true);
+        $gd = \imagecreatefromstring($bytes);
+        \restore_error_handler();
         if (!$gd instanceof \GdImage) {
             return null;
         }
-        $width = imagesx($gd);
-        $height = imagesy($gd);
+        $width = \imagesx($gd);
+        $height = \imagesy($gd);
         if (($width * $height) > $this->maxPixels) {
             return null;
         }
-        if (!imageistruecolor($gd)) {
-            imagepalettetotruecolor($gd);
+        if (!\imageistruecolor($gd)) {
+            \imagepalettetotruecolor($gd);
         }
 
         return new ImageData($gd, $width, $height, \strlen($bytes));

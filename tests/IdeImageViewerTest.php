@@ -47,10 +47,10 @@ final class IdeImageViewerTest extends TestCase
     private static function project(array $files): TempProject
     {
         /** @var array<string, mixed> $config */
-        $config = json_decode($files['.porta.json'] ?? '{}', associative: true);
+        $config = \json_decode($files['.porta.json'] ?? '{}', associative: true);
         $config['enabledPlugins'] = ['image-viewer'];
 
-        return new TempProject([...$files, '.porta.json' => (string) json_encode($config)]);
+        return new TempProject([...$files, '.porta.json' => (string) \json_encode($config)]);
     }
 
     public function testThePaneIsHandedTheSameTabHandlerCorePanesGet(): void
@@ -59,7 +59,7 @@ final class IdeImageViewerTest extends TestCase
         // because the registrar hands it the IDE's own ViewerTabHandler. Core
         // cannot assert this: the pane type is this plugin's.
         $project = self::project(['img.png' => PngFixture::bytes(4, 4)]);
-        putenv('PATH=/nonexistent');
+        \putenv('PATH=/nonexistent');
 
         $this->runIde(
             $project,
@@ -76,7 +76,7 @@ final class IdeImageViewerTest extends TestCase
 
     public function testImageOpensInlineWithHalfBlocksZoomAndPan(): void
     {
-        putenv('PATH=/nonexistent');
+        \putenv('PATH=/nonexistent');
         $project = self::project(['img.png' => $this->twoColorPng(64, 64)]);
 
         $this->runIde(
@@ -137,7 +137,7 @@ final class IdeImageViewerTest extends TestCase
 
     public function testATrackpadCtrlScrollBurstGlidesWhereASingleNotchSteps(): void
     {
-        putenv('PATH=/nonexistent');
+        \putenv('PATH=/nonexistent');
         $project = self::project(['img.png' => $this->twoColorPng(64, 64)]);
 
         $this->runIde(
@@ -158,7 +158,7 @@ final class IdeImageViewerTest extends TestCase
 
                     // …and everything after it glides, instead of crossing the
                     // whole ladder the way one flick used to.
-                    foreach (range(1, end: 4) as $ignored) {
+                    foreach (\range(1, end: 4) as $ignored) {
                         $tui->handleInput("\x1b[<80;40;10M");
                     }
                     $this->assertSame('272%', $viewer->zoomLabel(), '200% × 1.08⁴ — between the rungs');
@@ -175,7 +175,7 @@ final class IdeImageViewerTest extends TestCase
 
     public function testImageTabSwitchingSavingAndClosingKeepTheEditorSafe(): void
     {
-        putenv('PATH=/nonexistent');
+        \putenv('PATH=/nonexistent');
         $png = $this->twoColorPng(8, 4);
         $project = self::project(['a.php' => "<?php\n// code\n", 'img.png' => $png]);
 
@@ -195,7 +195,7 @@ final class IdeImageViewerTest extends TestCase
                     $service->saveCurrentFile();
                 },
                 340 => function ($tui, $terminal, $ide) use ($project, $png): void {
-                    $this->assertSame($png, (string) file_get_contents($project->path('img.png')), 'saving never writes over the image');
+                    $this->assertSame($png, (string) \file_get_contents($project->path('img.png')), 'saving never writes over the image');
                     $tui->handleInput("\x1b[1;5D"); // ctrl+left → back to the code tab
                     $this->frame($tui);
                     $this->assertStringEndsWith('a.php', (string) $tui->getById('editor')->getFilePath());
@@ -206,16 +206,16 @@ final class IdeImageViewerTest extends TestCase
                     $this->frame($tui);
                     $this->assertSame('image-viewer', $tui->getFocus()?->getId());
                     // An external change re-decodes on the next poll; garbage keeps the old pixels.
-                    file_put_contents($project->path('img.png'), $this->twoColorPng(16, 2));
-                    touch($project->path('img.png'), time() + 2); // force a new disk stamp within the same second
+                    \file_put_contents($project->path('img.png'), $this->twoColorPng(16, 2));
+                    \touch($project->path('img.png'), \time() + 2); // force a new disk stamp within the same second
                     $service = Services::resolve($ide, BufferService::class);
                     $service->pollFilesystem();
                     $buffers = Services::resolve($ide, BufferManager::class);
                     $this->assertSame(16, $buffers->active()?->panePayload?->width, 'externally changed image reloaded');
                     $this->awaitPainted($tui, $terminal, 'Reloaded img.png');
                     $this->assertStringContainsString('Reloaded img.png', AnsiUtils::stripAnsiCodes($terminal->getOutput()));
-                    file_put_contents($project->path('img.png'), data: 'not a png anymore');
-                    touch($project->path('img.png'), time() + 4);
+                    \file_put_contents($project->path('img.png'), data: 'not a png anymore');
+                    \touch($project->path('img.png'), \time() + 4);
                     $service->pollFilesystem();
                     $this->assertSame(16, $buffers->active()?->panePayload?->width, 'undecodable bytes keep the old pixels');
                     $tui->handleInput("\x1bw"); // alt+w → close the image tab
@@ -233,7 +233,7 @@ final class IdeImageViewerTest extends TestCase
 
     public function testImageTabGuardsEditorHostedModals(): void
     {
-        putenv('PATH=/nonexistent');
+        \putenv('PATH=/nonexistent');
         $project = self::project(['a.php' => "<?php\n", 'img.png' => $this->twoColorPng(4, 4)]);
 
         // With only the image open, the editor-hosted modals refuse with a flash.
@@ -273,17 +273,17 @@ final class IdeImageViewerTest extends TestCase
 
     public function testImageOpenRejectsOversizedCorruptAndLastTabCloseEmptiesTheEditor(): void
     {
-        putenv('PATH=/nonexistent');
+        \putenv('PATH=/nonexistent');
         $project = self::project([
             // The plugin's maxBytes claim is raised past the core decoder cap,
             // so the oversized file still ROUTES to the image path and the
             // core backstop refuses it (the default claim would drop it to the
             // text path's own 2 MB refusal instead).
-            '.porta.json' => (string) json_encode(['plugins' => ['image-viewer' => ['maxBytes' => 30 * 1024 * 1024]]]),
+            '.porta.json' => (string) \json_encode(['plugins' => ['image-viewer' => ['maxBytes' => 30 * 1024 * 1024]]]),
             'fake.png' => 'not an image at all',
             'img.png' => $this->twoColorPng(4, 4),
         ]);
-        file_put_contents($project->path('big.png'), str_repeat('x', 21 * 1024 * 1024));
+        \file_put_contents($project->path('big.png'), \str_repeat('x', 21 * 1024 * 1024));
 
         $this->runIde(
             $project,
@@ -316,18 +316,18 @@ final class IdeImageViewerTest extends TestCase
     /** PNG bytes for a $width×$height image split vertically: left half red, right half blue. */
     private function twoColorPng(int $width, int $height): string
     {
-        $gd = imagecreatetruecolor($width, $height);
-        imagefilledrectangle($gd, x1: 0, y1: 0, x2: intdiv($width, num2: 2) - 1, y2: $height - 1, color: (int) imagecolorallocate($gd, red: 255, green: 0, blue: 0));
-        imagefilledrectangle($gd, intdiv($width, num2: 2), y1: 0, x2: $width - 1, y2: $height - 1, color: (int) imagecolorallocate($gd, red: 0, green: 0, blue: 255));
-        ob_start();
-        imagepng($gd);
+        $gd = \imagecreatetruecolor($width, $height);
+        \imagefilledrectangle($gd, x1: 0, y1: 0, x2: \intdiv($width, num2: 2) - 1, y2: $height - 1, color: (int) \imagecolorallocate($gd, red: 255, green: 0, blue: 0));
+        \imagefilledrectangle($gd, \intdiv($width, num2: 2), y1: 0, x2: $width - 1, y2: $height - 1, color: (int) \imagecolorallocate($gd, red: 0, green: 0, blue: 255));
+        \ob_start();
+        \imagepng($gd);
 
-        return (string) ob_get_clean();
+        return (string) \ob_get_clean();
     }
 
     public function testReopeningAChangedImageRefreshesThePixelsImmediately(): void
     {
-        putenv('PATH=/nonexistent');
+        \putenv('PATH=/nonexistent');
         $project = self::project(['img.png' => $this->twoColorPng(64, 64), 'a.php' => "<?php\n"]);
 
         $this->runIde(
@@ -341,10 +341,10 @@ final class IdeImageViewerTest extends TestCase
                     // Switch away, change the file on disk, and explicitly re-open:
                     // the payload refreshes without waiting out the 1s reconciler.
                     $service = Services::resolve($ide, BufferService::class);
-                    $service->openFile((string) realpath($project->path('a.php')));
-                    file_put_contents($project->path('img.png'), data: $this->twoColorPng(32, 16));
-                    $service->openFile((string) realpath($project->path('img.png')));
-                    $this->await(static fn (): bool => str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '32 × 16'), what: 'the refreshed dimensions');
+                    $service->openFile((string) \realpath($project->path('a.php')));
+                    \file_put_contents($project->path('img.png'), data: $this->twoColorPng(32, 16));
+                    $service->openFile((string) \realpath($project->path('img.png')));
+                    $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '32 × 16'), what: 'the refreshed dimensions');
                 },
             ],
         );
@@ -365,9 +365,9 @@ final class IdeImageViewerTest extends TestCase
     private function phpOnlyPath(TempProject $project): void
     {
         $bin = $project->path('.php-only-bin');
-        mkdir($bin);
-        symlink(\PHP_BINARY, $bin.'/php');
-        putenv('PATH='.$bin);
+        \mkdir($bin);
+        \symlink(\PHP_BINARY, $bin.'/php');
+        \putenv('PATH='.$bin);
     }
 
     public function testAPreMoveSvgConverterAdoptsOnceAndWritesThrough(): void
@@ -377,7 +377,7 @@ final class IdeImageViewerTest extends TestCase
         // through to plugins.image-viewer from onReady, so the file stops
         // answering the same question twice.
         $project = self::project([
-            '.porta.json' => (string) json_encode(['settings' => ['svgConverter' => self::fakeConverter()]]),
+            '.porta.json' => (string) \json_encode(['settings' => ['svgConverter' => self::fakeConverter()]]),
             'logo.svg' => self::SMALL_SVG,
         ]);
         $this->phpOnlyPath($project);
@@ -387,9 +387,9 @@ final class IdeImageViewerTest extends TestCase
             $project->path('logo.svg'),
             [
                 200 => function ($tui, $terminal, $ide) use ($project): void {
-                    $this->await(static fn (): bool => str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '100 × 50'), what: 'the adopted converter rasterizing the SVG');
+                    $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '100 × 50'), what: 'the adopted converter rasterizing the SVG');
                     $this->await(static function () use ($project): bool {
-                        $file = json_decode((string) file_get_contents($project->path('.porta.json')), associative: true);
+                        $file = \json_decode((string) \file_get_contents($project->path('.porta.json')), associative: true);
 
                         return \is_array($file) && ($file['plugins']['image-viewer']['svgConverter'] ?? null) === self::fakeConverter();
                     }, what: 'the adoption written through to plugins.image-viewer');
@@ -402,7 +402,7 @@ final class IdeImageViewerTest extends TestCase
     public function testAnSvgOpensAsAPictureRasterizedByTheConverter(): void
     {
         $project = self::project([
-            '.porta.json' => (string) json_encode(['plugins' => ['image-viewer' => ['svgConverter' => self::fakeConverter()]]]),
+            '.porta.json' => (string) \json_encode(['plugins' => ['image-viewer' => ['svgConverter' => self::fakeConverter()]]]),
             'logo.svg' => self::SMALL_SVG,
             'other.svg' => self::SMALL_SVG,
             'binary.svg' => "\xff\xfe\x00<svg",
@@ -414,7 +414,7 @@ final class IdeImageViewerTest extends TestCase
             $project->path('logo.svg'),
             [
                 200 => function ($tui, $terminal, $ide) use ($project): void {
-                    $this->await(static fn (): bool => str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '100 × 50'), what: 'the rasterized SVG');
+                    $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '100 × 50'), what: 'the rasterized SVG');
                     $this->assertSame('image-viewer', $tui->getFocus()?->getId(), 'an SVG takes the image pane');
 
                     $output = $terminal->getOutput();
@@ -427,14 +427,14 @@ final class IdeImageViewerTest extends TestCase
 
                     // Opening another one with editor focus keeps the pane.
                     $service = Services::resolve($ide, BufferService::class);
-                    $service->openFile((string) realpath($project->path('other.svg')), OpenFocus::Editor);
+                    $service->openFile((string) \realpath($project->path('other.svg')), OpenFocus::Editor);
                     $this->frame($tui);
                     $this->assertSame('image-viewer', $tui->getFocus()?->getId());
 
                     // Bytes that are not UTF-8 are refused the same way any
                     // text-backed document is, rather than reaching a converter.
-                    $service->openFile((string) realpath($project->path('binary.svg')));
-                    $this->await(static fn (): bool => str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'Not a UTF-8 text file'), what: 'the refusal');
+                    $service->openFile((string) \realpath($project->path('binary.svg')));
+                    $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'Not a UTF-8 text file'), what: 'the refusal');
                 },
             ],
         );
@@ -443,7 +443,7 @@ final class IdeImageViewerTest extends TestCase
     public function testReopeningAChangedSvgRerastersItImmediately(): void
     {
         $project = self::project([
-            '.porta.json' => (string) json_encode(['plugins' => ['image-viewer' => ['svgConverter' => self::fakeConverter()]]]),
+            '.porta.json' => (string) \json_encode(['plugins' => ['image-viewer' => ['svgConverter' => self::fakeConverter()]]]),
             'logo.svg' => self::SMALL_SVG,
         ]);
         $this->phpOnlyPath($project);
@@ -453,14 +453,14 @@ final class IdeImageViewerTest extends TestCase
             $project->path('logo.svg'),
             [
                 200 => function ($tui, $terminal, $ide) use ($project): void {
-                    $this->await(static fn (): bool => str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '100 × 50'), what: 'the first raster');
+                    $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '100 × 50'), what: 'the first raster');
 
                     // Change the document on disk and re-open it explicitly: the
                     // source refreshes without waiting out the 1s reconciler, and
                     // the pane re-rasterizes what is now there.
-                    file_put_contents($project->path('logo.svg'), data: '<svg data-w="60" viewBox="0 0 60 30"/>');
-                    Services::resolve($ide, BufferService::class)->openFile((string) realpath($project->path('logo.svg')));
-                    $this->await(static fn (): bool => str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '60 × 30'), what: 'the re-rasterized document');
+                    \file_put_contents($project->path('logo.svg'), data: '<svg data-w="60" viewBox="0 0 60 30"/>');
+                    Services::resolve($ide, BufferService::class)->openFile((string) \realpath($project->path('logo.svg')));
+                    $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '60 × 30'), what: 'the re-rasterized document');
                     $this->assertSame('60 × 30', $tui->getById('image-viewer')->statusInfo(), 'a resized document is fitted fresh');
                 },
             ],
@@ -474,7 +474,7 @@ final class IdeImageViewerTest extends TestCase
         // SVG, was refused, and returned. Nothing reloaded until the tab was
         // re-opened by hand. The payload shape now tells the two apart.
         $project = self::project([
-            '.porta.json' => (string) json_encode(['plugins' => ['image-viewer' => ['svgConverter' => self::fakeConverter()]]]),
+            '.porta.json' => (string) \json_encode(['plugins' => ['image-viewer' => ['svgConverter' => self::fakeConverter()]]]),
             'logo.svg' => self::SMALL_SVG,
         ]);
         $this->phpOnlyPath($project);
@@ -484,31 +484,31 @@ final class IdeImageViewerTest extends TestCase
             $project->path('logo.svg'),
             [
                 200 => function ($tui, $terminal, $ide) use ($project): void {
-                    $this->await(static fn (): bool => str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '100 × 50'), what: 'the first raster');
+                    $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '100 × 50'), what: 'the first raster');
 
-                    file_put_contents($project->path('logo.svg'), data: '<svg data-w="70" viewBox="0 0 70 35"/>');
-                    touch($project->path('logo.svg'), mtime: time() + 2); // a new disk stamp within the same second
+                    \file_put_contents($project->path('logo.svg'), data: '<svg data-w="70" viewBox="0 0 70 35"/>');
+                    \touch($project->path('logo.svg'), mtime: \time() + 2); // a new disk stamp within the same second
                     Services::resolve($ide, BufferService::class)->pollFilesystem();
 
                     // The stub converter reports height = width / 2, so a 70-wide
                     // document probes as 70 × 35.
-                    $this->await(static fn (): bool => str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '70 × 35'), what: 'the reloaded document');
+                    $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '70 × 35'), what: 'the reloaded document');
                     $this->assertSame('70 × 35', $tui->getById('image-viewer')->statusInfo(), 'the poller re-read the source and the pane re-rasterized it');
 
                     // The same rule on the EXPLICIT re-open path, which reads the
                     // payload through the pane's loader too: a refusal there
                     // keeps the last good document rather than blanking the pane.
-                    file_put_contents($project->path('logo.svg'), data: "\xff\xfe\x00<svg");
-                    touch($project->path('logo.svg'), mtime: time() + 3);
-                    Services::resolve($ide, BufferService::class)->openFile((string) realpath($project->path('logo.svg')));
+                    \file_put_contents($project->path('logo.svg'), data: "\xff\xfe\x00<svg");
+                    \touch($project->path('logo.svg'), mtime: \time() + 3);
+                    Services::resolve($ide, BufferService::class)->openFile((string) \realpath($project->path('logo.svg')));
                     $this->pump(0.3);
                     $this->assertSame('70 × 35', $tui->getById('image-viewer')->statusInfo(), 'a refused re-open keeps the document');
 
                     // Garbage keeps the picture, the same contract the bitmap
                     // path keeps: an unreadable new payload is not a reason to
                     // blank a pane that is showing something valid.
-                    file_put_contents($project->path('logo.svg'), data: "\xff\xfe\x00<svg");
-                    touch($project->path('logo.svg'), mtime: time() + 4);
+                    \file_put_contents($project->path('logo.svg'), data: "\xff\xfe\x00<svg");
+                    \touch($project->path('logo.svg'), mtime: \time() + 4);
                     Services::resolve($ide, BufferService::class)->pollFilesystem();
                     $this->pump(0.3);
                     $this->assertSame('70 × 35', $tui->getById('image-viewer')->statusInfo(), 'invalid new bytes keep the last good document');
@@ -520,7 +520,7 @@ final class IdeImageViewerTest extends TestCase
     public function testOpenAsTextGivesTheXmlBack(): void
     {
         $project = self::project([
-            '.porta.json' => (string) json_encode(['plugins' => ['image-viewer' => ['svgConverter' => self::fakeConverter()]]]),
+            '.porta.json' => (string) \json_encode(['plugins' => ['image-viewer' => ['svgConverter' => self::fakeConverter()]]]),
             'logo.svg' => self::SMALL_SVG,
         ]);
         $this->phpOnlyPath($project);
@@ -530,11 +530,11 @@ final class IdeImageViewerTest extends TestCase
             $project->path('logo.svg'),
             [
                 200 => function ($tui, $terminal, $ide): void {
-                    $this->await(static fn (): bool => str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '100 × 50'), what: 'the rasterized SVG');
+                    $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '100 × 50'), what: 'the rasterized SVG');
                     $this->assertSame('image-viewer', $tui->getFocus()?->getId());
 
                     Services::resolve($ide, CommandRegistry::class)->run('open_as_text');
-                    $this->await(static fn (): bool => str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '<svg'), what: 'the XML behind the picture');
+                    $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '<svg'), what: 'the XML behind the picture');
                     $this->assertSame('editor', $tui->getFocus()?->getId(), 'the editor took the pane back');
                     $this->assertStringContainsString('viewBox', Services::resolve($ide, CodeEditorWidget::class)->getDocument()->getText(), 'and it is editable');
                 },
@@ -544,7 +544,7 @@ final class IdeImageViewerTest extends TestCase
 
     public function testWithoutAConverterAnSvgStaysText(): void
     {
-        putenv('PATH=/nonexistent'); // nothing to discover, and no setting
+        \putenv('PATH=/nonexistent'); // nothing to discover, and no setting
         $project = self::project(['logo.svg' => self::SMALL_SVG]);
 
         $this->runIde(
@@ -563,7 +563,7 @@ final class IdeImageViewerTest extends TestCase
     public function testTheSvgSettingSendsItBackToTheEditor(): void
     {
         $project = self::project([
-            '.porta.json' => (string) json_encode([
+            '.porta.json' => (string) \json_encode([
                 'plugins' => ['image-viewer' => ['svgConverter' => self::fakeConverter(), 'svg' => false]],
             ]),
             'logo.svg' => self::SMALL_SVG,

@@ -34,8 +34,8 @@ final class HalfBlockRasterizer
         // scale) here keeps sample() below in one coordinate space, and both
         // conversions are identities at ratio 1.0.
         $scale = $view->effectiveScale($cols, $pxRows) / $source->ratio;
-        $rect['srcX'] = (int) round($rect['srcX'] * $source->ratio);
-        $rect['srcY'] = (int) round($rect['srcY'] * $source->ratio);
+        $rect['srcX'] = (int) \round($rect['srcX'] * $source->ratio);
+        $rect['srcY'] = (int) \round($rect['srcY'] * $source->ratio);
 
         $lines = [];
         for ($row = 0; $row < $rows; ++$row) {
@@ -89,10 +89,10 @@ final class HalfBlockRasterizer
         if ($dx < 0 || $dx >= $rect['outCols'] || $dy < 0 || $dy >= $rect['outHalfRows']) {
             return null;
         }
-        $x = min($image->width - 1, $rect['srcX'] + (int) floor($dx / $scale));
-        $y = min($image->height - 1, $rect['srcY'] + (int) floor($dy / $scale));
+        $x = \min($image->width - 1, $rect['srcX'] + (int) \floor($dx / $scale));
+        $y = \min($image->height - 1, $rect['srcY'] + (int) \floor($dy / $scale));
 
-        $pixel = (int) imagecolorat($image->gd, $x, $y); // coords are clamped; false cannot occur
+        $pixel = (int) \imagecolorat($image->gd, $x, $y); // coords are clamped; false cannot occur
         $alpha = ($pixel >> 24) & 0x7F; // GD: 0 = opaque … 127 = fully transparent
         $rgb = [($pixel >> 16) & 0xFF, ($pixel >> 8) & 0xFF, $pixel & 0xFF];
         if (0 === $alpha) {
@@ -101,6 +101,6 @@ final class HalfBlockRasterizer
         $checker = 0 === ((($x >> 3) + ($y >> 3)) & 1) ? 90 : 140;
         $opacity = 1 - ($alpha / 127);
 
-        return array_map(static fn (int $channel): int => (int) round(($channel * $opacity) + ($checker * (1 - $opacity))), $rgb);
+        return \array_map(static fn (int $channel): int => (int) \round(($channel * $opacity) + ($checker * (1 - $opacity))), $rgb);
     }
 }

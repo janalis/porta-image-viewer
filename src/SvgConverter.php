@@ -58,7 +58,7 @@ enum SvgConverter
             self::Magick, self::Convert => [
                 '-background',
                 'none',
-                ...(null === $scale ? [] : ['-density', (string) (int) round(96 * $scale)]),
+                ...(null === $scale ? [] : ['-density', (string) (int) \round(96 * $scale)]),
                 'svg:-',
                 'png:-',
             ],
@@ -86,7 +86,7 @@ enum SvgConverter
     /** The converter a configured binary PATH names, by its file name (an unknown name is driven as librsvg). */
     public static function forBinary(string $path): self
     {
-        $name = basename($path);
+        $name = \basename($path);
         foreach (self::cases() as $converter) {
             if ($converter->binaryName() === $name) {
                 return $converter;

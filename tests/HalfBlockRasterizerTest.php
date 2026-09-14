@@ -18,10 +18,10 @@ final class HalfBlockRasterizerTest extends TestCase
     {
         $height = \count($pixels);
         $width = \count($pixels[0]);
-        $gd = imagecreatetruecolor($width, $height);
+        $gd = \imagecreatetruecolor($width, $height);
         foreach ($pixels as $y => $row) {
             foreach ($row as $x => [$r, $g, $b]) {
-                imagesetpixel($gd, $x, $y, (int) imagecolorallocate($gd, $r, $g, $b));
+                \imagesetpixel($gd, $x, $y, (int) \imagecolorallocate($gd, $r, $g, $b));
             }
         }
 
@@ -44,7 +44,7 @@ final class HalfBlockRasterizerTest extends TestCase
 
     public function testCoalescesRunsOfTheSameColorPair(): void
     {
-        $image = $this->image([array_fill(0, count: 4, value: [10, 20, 30]), array_fill(0, count: 4, value: [40, 50, 60])]);
+        $image = $this->image([\array_fill(0, count: 4, value: [10, 20, 30]), \array_fill(0, count: 4, value: [40, 50, 60])]);
         $lines = HalfBlockRasterizer::render(SampleSource::original($image), new ZoomPanModel(4, 2), 4, 1);
 
         $this->assertSame(["\x1b[38;2;10;20;30;48;2;40;50;60m▀▀▀▀\x1b[0m"], $lines);
@@ -77,18 +77,18 @@ final class HalfBlockRasterizerTest extends TestCase
 
     public function testAlphaBlendsOntoTheCheckerboard(): void
     {
-        $gd = imagecreatetruecolor(1, height: 1);
-        imagealphablending($gd, enable: false);
-        imagesavealpha($gd, enable: true);
-        imagesetpixel($gd, x: 0, y: 0, color: (int) imagecolorallocatealpha($gd, red: 255, green: 255, blue: 255, alpha: 127));
+        $gd = \imagecreatetruecolor(1, height: 1);
+        \imagealphablending($gd, enable: false);
+        \imagesavealpha($gd, enable: true);
+        \imagesetpixel($gd, x: 0, y: 0, color: (int) \imagecolorallocatealpha($gd, red: 255, green: 255, blue: 255, alpha: 127));
         $transparent = new ImageData($gd, 1, 1, 0);
         $lines = HalfBlockRasterizer::render(SampleSource::original($transparent), new ZoomPanModel(1, 1), 1, 1);
         $this->assertStringContainsString('38;2;90;90;90', $lines[0], 'fully transparent → pure checkerboard (origin square = 90)');
 
-        $gd2 = imagecreatetruecolor(1, height: 1);
-        imagealphablending($gd2, enable: false);
-        imagesavealpha($gd2, enable: true);
-        imagesetpixel($gd2, x: 0, y: 0, color: (int) imagecolorallocatealpha($gd2, red: 255, green: 255, blue: 255, alpha: 64));
+        $gd2 = \imagecreatetruecolor(1, height: 1);
+        \imagealphablending($gd2, enable: false);
+        \imagesavealpha($gd2, enable: true);
+        \imagesetpixel($gd2, x: 0, y: 0, color: (int) \imagecolorallocatealpha($gd2, red: 255, green: 255, blue: 255, alpha: 64));
         $half = new ImageData($gd2, 1, 1, 0);
         $lines = HalfBlockRasterizer::render(SampleSource::original($half), new ZoomPanModel(1, 1), 1, 1);
         $this->assertStringContainsString('38;2;172;172;172', $lines[0], 'alpha 64/127 blends white onto 90-gray → 172');
@@ -98,11 +98,11 @@ final class HalfBlockRasterizerTest extends TestCase
     {
         // A 9×1 fully-transparent image: pixel 8 sits in the neighbouring 8×8
         // checker square (x>>3 = 1), which must land on the OTHER shade (140).
-        $gd = imagecreatetruecolor(9, height: 1);
-        imagealphablending($gd, enable: false);
-        imagesavealpha($gd, enable: true);
+        $gd = \imagecreatetruecolor(9, height: 1);
+        \imagealphablending($gd, enable: false);
+        \imagesavealpha($gd, enable: true);
         for ($x = 0; $x < 9; ++$x) {
-            imagesetpixel($gd, $x, y: 0, color: (int) imagecolorallocatealpha($gd, red: 255, green: 255, blue: 255, alpha: 127));
+            \imagesetpixel($gd, $x, y: 0, color: (int) \imagecolorallocatealpha($gd, red: 255, green: 255, blue: 255, alpha: 127));
         }
         $image = new ImageData($gd, 9, 1, 0);
         $lines = HalfBlockRasterizer::render(SampleSource::original($image), new ZoomPanModel(9, 1), 9, 1);

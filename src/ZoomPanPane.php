@@ -66,7 +66,7 @@ trait ZoomPanPane
      */
     public function statusRight(): string
     {
-        return trim(\sprintf('%s  %s  %s', $this->statusInfo(), $this->zoomLabel(), $this->keysHint()));
+        return \trim(\sprintf('%s  %s  %s', $this->statusInfo(), $this->zoomLabel(), $this->keysHint()));
     }
 
     /** Ctrl+wheel: zoom one step anchored on the pane cell under the pointer. */
@@ -111,7 +111,7 @@ trait ZoomPanPane
     /** Shift+arrow pans a 5× larger step. */
     private function pan(int $dx, int $dy, string $data): void
     {
-        $factor = str_starts_with($data, "\x1b[1;2") ? 5 : 1; // CSI 1;2 = shift-modified arrow
+        $factor = \str_starts_with($data, "\x1b[1;2") ? 5 : 1; // CSI 1;2 = shift-modified arrow
         if (null !== $this->view) {
             $this->view->panBy($dx * $factor, $dy * $factor, $this->lastCols, 2 * $this->lastRows);
             $this->afterViewChange();
@@ -139,9 +139,9 @@ trait ZoomPanPane
     private function focusFrame(array $lines, int $cols, int $rows): array
     {
         $accent = $this->styles->of(Role::TabAccent);
-        $span = max(0, $cols - 2);
-        $lines[0] = $accent->apply(Glyphs::FRAME_TOP_LEFT.str_repeat(Glyphs::FRAME_HORIZONTAL, $span).Glyphs::FRAME_TOP_RIGHT);
-        $lines[$rows - 1] = $accent->apply(Glyphs::FRAME_BOTTOM_LEFT.str_repeat(Glyphs::FRAME_HORIZONTAL, $span).Glyphs::FRAME_BOTTOM_RIGHT);
+        $span = \max(0, $cols - 2);
+        $lines[0] = $accent->apply(Glyphs::FRAME_TOP_LEFT.\str_repeat(Glyphs::FRAME_HORIZONTAL, $span).Glyphs::FRAME_TOP_RIGHT);
+        $lines[$rows - 1] = $accent->apply(Glyphs::FRAME_BOTTOM_LEFT.\str_repeat(Glyphs::FRAME_HORIZONTAL, $span).Glyphs::FRAME_BOTTOM_RIGHT);
         $rail = $accent->apply(Glyphs::FRAME_VERTICAL);
         for ($r = 1; $r < ($rows - 1); ++$r) {
             $lines[$r] = $rail.AnsiUtils::sliceByColumn($lines[$r], 1, $cols - 2).$rail;
@@ -165,13 +165,13 @@ trait ZoomPanPane
      */
     private function messagePane(string $message, Role $role, int $cols, int $rows): array
     {
-        $blank = array_fill(0, max(1, $rows), AnsiText::blank(max(1, $cols)));
+        $blank = \array_fill(0, \max(1, $rows), AnsiText::blank(\max(1, $cols)));
         if ('' === $message) {
             return $blank;
         }
         $text = AnsiUtils::truncateToWidth($message, $cols);
-        $pad = max(0, intdiv($cols - AnsiUtils::visibleWidth($text), num2: 2));
-        $blank[intdiv($rows, num2: 2)] = AnsiText::blank($pad).$this->styles->of($role)->apply($text).AnsiText::blank($cols - $pad - AnsiUtils::visibleWidth($text));
+        $pad = \max(0, \intdiv($cols - AnsiUtils::visibleWidth($text), num2: 2));
+        $blank[\intdiv($rows, num2: 2)] = AnsiText::blank($pad).$this->styles->of($role)->apply($text).AnsiText::blank($cols - $pad - AnsiUtils::visibleWidth($text));
 
         return $blank;
     }

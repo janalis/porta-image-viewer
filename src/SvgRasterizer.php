@@ -64,7 +64,7 @@ final class SvgRasterizer implements Rasterizer
      */
     private function resolve(): array
     {
-        $configured = trim((string) ($this->converterPath instanceof \Closure ? ($this->converterPath)() : $this->converterPath));
+        $configured = \trim((string) ($this->converterPath instanceof \Closure ? ($this->converterPath)() : $this->converterPath));
         if ('' !== $configured) {
             return [$configured, SvgConverter::forBinary($configured)];
         }

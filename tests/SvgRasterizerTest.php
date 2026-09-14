@@ -49,7 +49,7 @@ final class SvgRasterizerTest extends TestCase
 
     public function testRendersTheDocumentsOwnSizeWhenNoScaleIsAsked(): void
     {
-        [$png, $error] = $this->render(new SvgRasterizer(sys_get_temp_dir(), self::stub()), self::SMALL_SVG, null);
+        [$png, $error] = $this->render(new SvgRasterizer(\sys_get_temp_dir(), self::stub()), self::SMALL_SVG, null);
 
         $this->assertNull($error);
         $image = new ImageDecoder()->decodeBytes((string) $png);
@@ -61,7 +61,7 @@ final class SvgRasterizerTest extends TestCase
 
     public function testAScaleReachesTheConverterAsItsOwnFlag(): void
     {
-        $rasterizer = new SvgRasterizer(sys_get_temp_dir(), self::stub());
+        $rasterizer = new SvgRasterizer(\sys_get_temp_dir(), self::stub());
 
         [$png] = $this->render($rasterizer, self::SMALL_SVG, 2.5);
         $image = new ImageDecoder()->decodeBytes((string) $png);
@@ -73,24 +73,24 @@ final class SvgRasterizerTest extends TestCase
     {
         // Driving the same stub under ImageMagick's name proves the other argv
         // shape agrees: -density 96×scale is what -z is.
-        $magick = sys_get_temp_dir().'/porta-fake-magick-'.getmypid();
-        copy(self::stub(), $magick);
-        chmod($magick, permissions: 0o755);
+        $magick = \sys_get_temp_dir().'/porta-fake-magick-'.\getmypid();
+        \copy(self::stub(), $magick);
+        \chmod($magick, permissions: 0o755);
 
         try {
             $this->assertSame(SvgConverter::Magick, SvgConverter::forBinary('/usr/bin/magick'));
-            [$png] = $this->render(new SvgRasterizer(sys_get_temp_dir(), $magick), self::SMALL_SVG, 2.5);
+            [$png] = $this->render(new SvgRasterizer(\sys_get_temp_dir(), $magick), self::SMALL_SVG, 2.5);
             $image = new ImageDecoder()->decodeBytes((string) $png);
             $this->assertNotNull($image);
             $this->assertSame([250, 125], [$image->width, $image->height], '-density 240 is -z 2.5');
         } finally {
-            unlink($magick);
+            \unlink($magick);
         }
     }
 
     public function testAFailureSurfacesTheConvertersStderr(): void
     {
-        [$png, $error] = $this->render(new SvgRasterizer(sys_get_temp_dir(), self::stub()), '<svg>broken', null);
+        [$png, $error] = $this->render(new SvgRasterizer(\sys_get_temp_dir(), self::stub()), '<svg>broken', null);
 
         $this->assertNull($png);
         $this->assertStringContainsString('XML parse error', (string) $error);
@@ -98,7 +98,7 @@ final class SvgRasterizerTest extends TestCase
 
     public function testANewRenderSupersedesTheInFlightOne(): void
     {
-        $rasterizer = new SvgRasterizer(sys_get_temp_dir(), self::stub());
+        $rasterizer = new SvgRasterizer(\sys_get_temp_dir(), self::stub());
         $fired = [];
         $onError = static function (string $message): void {
             self::fail("unexpected rasterize error: {$message}");
@@ -129,7 +129,7 @@ final class SvgRasterizerTest extends TestCase
 
     public function testCancelIsIdempotentAndStopsInFlightWork(): void
     {
-        $rasterizer = new SvgRasterizer(sys_get_temp_dir(), self::stub());
+        $rasterizer = new SvgRasterizer(\sys_get_temp_dir(), self::stub());
         $fired = false;
         $mark = static function () use (&$fired): void {
             $fired = true;
@@ -144,8 +144,8 @@ final class SvgRasterizerTest extends TestCase
 
     public function testWithoutAConverterItErrorsWithoutSpawning(): void
     {
-        putenv('PATH=/nonexistent');
-        $rasterizer = new SvgRasterizer(sys_get_temp_dir(), null);
+        \putenv('PATH=/nonexistent');
+        $rasterizer = new SvgRasterizer(\sys_get_temp_dir(), null);
         $error = null;
         $rasterizer->rasterize(
             self::SMALL_SVG,
@@ -164,7 +164,7 @@ final class SvgRasterizerTest extends TestCase
 
     public function testAnExplicitConverterPathWinsOverDiscovery(): void
     {
-        $this->assertSame(self::stub(), new SvgRasterizer(sys_get_temp_dir(), self::stub())->binary());
+        $this->assertSame(self::stub(), new SvgRasterizer(\sys_get_temp_dir(), self::stub())->binary());
     }
 
     public function testAClosurePathIsReReadPerCallSoASettingsEditApplies(): void
@@ -172,9 +172,9 @@ final class SvgRasterizerTest extends TestCase
         // The plugin hands a closure over its `svgConverter` setting rather
         // than a resolved string, which is what makes the setting live;
         // memoizing the first answer would make it restart-required again.
-        putenv('PATH=/nonexistent');
+        \putenv('PATH=/nonexistent');
         $configured = null;
-        $rasterizer = new SvgRasterizer(sys_get_temp_dir(), static function () use (&$configured): ?string {
+        $rasterizer = new SvgRasterizer(\sys_get_temp_dir(), static function () use (&$configured): ?string {
             return $configured;
         });
         $this->assertNull($rasterizer->binary(), 'nothing configured, nothing on PATH');
@@ -187,7 +187,7 @@ final class SvgRasterizerTest extends TestCase
     public function testARealConverterRendersTheDocument(): void
     {
         $this->skipWithoutSvgConverter();
-        $rasterizer = new SvgRasterizer(sys_get_temp_dir(), null);
+        $rasterizer = new SvgRasterizer(\sys_get_temp_dir(), null);
         $this->assertNotNull($rasterizer->binary(), 'discovery found the installed converter');
 
         [$png, $error] = $this->render($rasterizer, self::SMALL_SVG, 2.0);

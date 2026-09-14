@@ -33,11 +33,11 @@ final class NarrowImagePaneRenderTest extends TestCase
     /** A 64x8 gradient, the shape the pane's own tests use for sampling. */
     private static function gradient(): ImageData
     {
-        $gd = imagecreatetruecolor(64, height: 8);
+        $gd = \imagecreatetruecolor(64, height: 8);
         \assert(false !== $gd, description: 'the truecolor image was created');
         for ($x = 0; $x < 64; ++$x) {
             for ($y = 0; $y < 8; ++$y) {
-                imagesetpixel($gd, $x, $y, (int) imagecolorallocate($gd, $x * 4, green: 0, blue: 0));
+                \imagesetpixel($gd, $x, $y, (int) \imagecolorallocate($gd, $x * 4, green: 0, blue: 0));
             }
         }
 

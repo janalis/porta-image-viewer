@@ -96,7 +96,7 @@ final class ScaledSource
         if ($relative >= (1.0 - 1e-9)) {
             return new SampleSource($image, $ratio);
         }
-        if (null !== $this->memo && $this->source === $image && abs($this->scale - $relative) < 1e-9) {
+        if (null !== $this->memo && $this->source === $image && \abs($this->scale - $relative) < 1e-9) {
             return $this->memo;
         }
         if ($this->source !== $image) {
@@ -105,8 +105,8 @@ final class ScaledSource
 
         // Sized off the ORIGINAL either way, so which level the pixels came
         // from cannot move the copy's dimensions or the ratio reported for it.
-        $width = max(1, (int) round($image->width * $relative));
-        $height = max(1, (int) round($image->height * $relative));
+        $width = \max(1, (int) \round($image->width * $relative));
+        $height = \max(1, (int) \round($image->height * $relative));
         $from = $this->levelFor($image, $width, $height);
 
         $this->source = $image;
@@ -138,8 +138,8 @@ final class ScaledSource
         while (self::worthHalving($level, $width, $height)) {
             $level = self::resample(
                 $level,
-                max(1, intdiv($level->width, num2: 2)),
-                max(1, intdiv($level->height, num2: 2)),
+                \max(1, \intdiv($level->width, num2: 2)),
+                \max(1, \intdiv($level->height, num2: 2)),
                 $image->byteSize,
             );
             $this->levels[] = $level;
@@ -157,13 +157,13 @@ final class ScaledSource
     /** One area-averaged copy of $from at exactly $width × $height. */
     private static function resample(ImageData $from, int $width, int $height, int $byteSize): ImageData
     {
-        $canvas = imagecreatetruecolor($width, $height);
+        $canvas = \imagecreatetruecolor($width, $height);
         // Alpha survives the resample so the rasterizer's checkerboard blend
         // still sees real transparency: blending OFF makes the copy replace
         // rather than composite, and savealpha keeps the channel.
-        imagealphablending($canvas, enable: false);
-        imagesavealpha($canvas, enable: true);
-        imagecopyresampled(
+        \imagealphablending($canvas, enable: false);
+        \imagesavealpha($canvas, enable: true);
+        \imagecopyresampled(
             $canvas,
             $from->gd,
             dst_x: 0,

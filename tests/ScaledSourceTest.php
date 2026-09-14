@@ -18,11 +18,11 @@ final class ScaledSourceTest extends TestCase
     /** A $width × $height black image with one white column at $lineX. */
     private function withThinLine(int $width, int $height, int $lineX): ImageData
     {
-        $gd = imagecreatetruecolor($width, height: $height);
-        $black = (int) imagecolorallocate($gd, red: 0, green: 0, blue: 0);
-        $white = (int) imagecolorallocate($gd, red: 255, green: 255, blue: 255);
-        imagefilledrectangle($gd, x1: 0, y1: 0, x2: $width - 1, y2: $height - 1, color: $black);
-        imagefilledrectangle($gd, x1: $lineX, y1: 0, x2: $lineX, y2: $height - 1, color: $white);
+        $gd = \imagecreatetruecolor($width, height: $height);
+        $black = (int) \imagecolorallocate($gd, red: 0, green: 0, blue: 0);
+        $white = (int) \imagecolorallocate($gd, red: 255, green: 255, blue: 255);
+        \imagefilledrectangle($gd, x1: 0, y1: 0, x2: $width - 1, y2: $height - 1, color: $black);
+        \imagefilledrectangle($gd, x1: $lineX, y1: 0, x2: $lineX, y2: $height - 1, color: $white);
 
         return new ImageData($gd, $width, $height, 0);
     }
@@ -91,10 +91,10 @@ final class ScaledSourceTest extends TestCase
         $total = 0;
         for ($y = 0; $y < $left->height; ++$y) {
             for ($x = 0; $x < $left->width; ++$x) {
-                $a = (int) imagecolorat($left->gd, $x, $y);
-                $b = (int) imagecolorat($right->gd, $x, $y);
+                $a = (int) \imagecolorat($left->gd, $x, $y);
+                $b = (int) \imagecolorat($right->gd, $x, $y);
                 foreach ([16, 8, 0] as $shift) {
-                    $total += abs((($a >> $shift) & 255) - (($b >> $shift) & 255));
+                    $total += \abs((($a >> $shift) & 255) - (($b >> $shift) & 255));
                 }
             }
         }
@@ -105,15 +105,15 @@ final class ScaledSourceTest extends TestCase
     /** Line art at an awkward size: what a graph bitmap actually looks like. */
     private function lineArt(int $width, int $height): ImageData
     {
-        $gd = imagecreatetruecolor($width, height: $height);
-        imagefilledrectangle($gd, x1: 0, y1: 0, x2: $width - 1, y2: $height - 1, color: (int) imagecolorallocate($gd, red: 255, green: 255, blue: 255));
-        $black = (int) imagecolorallocate($gd, red: 0, green: 0, blue: 0);
-        mt_srand(3);
+        $gd = \imagecreatetruecolor($width, height: $height);
+        \imagefilledrectangle($gd, x1: 0, y1: 0, x2: $width - 1, y2: $height - 1, color: (int) \imagecolorallocate($gd, red: 255, green: 255, blue: 255));
+        $black = (int) \imagecolorallocate($gd, red: 0, green: 0, blue: 0);
+        \mt_srand(3);
         for ($i = 0; $i < 60; ++$i) {
-            imageline($gd, x1: mt_rand(0, $width - 1), y1: mt_rand(0, $height - 1), x2: mt_rand(0, $width - 1), y2: mt_rand(0, $height - 1), color: $black);
+            \imageline($gd, x1: \mt_rand(0, $width - 1), y1: \mt_rand(0, $height - 1), x2: \mt_rand(0, $width - 1), y2: \mt_rand(0, $height - 1), color: $black);
         }
         for ($i = 0; $i < 40; ++$i) {
-            imagerectangle($gd, x1: mt_rand(0, $width - 100), y1: mt_rand(0, $height - 100), x2: mt_rand(100, $width - 1), y2: mt_rand(100, $height - 1), color: $black);
+            \imagerectangle($gd, x1: \mt_rand(0, $width - 100), y1: \mt_rand(0, $height - 100), x2: \mt_rand(100, $width - 1), y2: \mt_rand(100, $height - 1), color: $black);
         }
 
         return new ImageData($gd, $width, $height, 0);
@@ -122,10 +122,10 @@ final class ScaledSourceTest extends TestCase
     /** One single-stage copy of $image, for the staged one to be measured against. */
     private function directResample(ImageData $image, int $width, int $height): ImageData
     {
-        $canvas = imagecreatetruecolor($width, height: $height);
-        imagealphablending($canvas, enable: false);
-        imagesavealpha($canvas, enable: true);
-        imagecopyresampled($canvas, $image->gd, dst_x: 0, dst_y: 0, src_x: 0, src_y: 0, dst_width: $width, dst_height: $height, src_width: $image->width, src_height: $image->height);
+        $canvas = \imagecreatetruecolor($width, height: $height);
+        \imagealphablending($canvas, enable: false);
+        \imagesavealpha($canvas, enable: true);
+        \imagecopyresampled($canvas, $image->gd, dst_x: 0, dst_y: 0, src_x: 0, src_y: 0, dst_width: $width, dst_height: $height, src_width: $image->width, src_height: $image->height);
 
         return new ImageData($canvas, $width, $height, 0);
     }
@@ -199,14 +199,14 @@ final class ScaledSourceTest extends TestCase
 
         $scaled->forScale($image, 0.03);
         $afterFirst = Probe::get($scaled, 'levels');
-        self::assertIsArray($afterFirst);
+        $this->assertIsArray($afterFirst);
         $this->assertNotSame([], $afterFirst, 'a hard downscale is sampled from a halving, not from the image');
 
         for ($step = 1; $step <= 8; ++$step) {
             $scaled->forScale($image, 0.03 + ($step / 1000));
         }
         $afterZooming = Probe::get($scaled, 'levels');
-        self::assertIsArray($afterZooming);
+        $this->assertIsArray($afterZooming);
         $this->assertSame($afterFirst, $afterZooming, 'zooming within one band must reuse the levels it already has');
     }
 
@@ -222,7 +222,7 @@ final class ScaledSourceTest extends TestCase
         $scaled = new ScaledSource();
         $scaled->forScale($image, 0.03);
         $built = Probe::get($scaled, 'levels');
-        $this->assertSame([800, 400], array_map(static fn (ImageData $level): int => $level->width, $built));
+        $this->assertSame([800, 400], \array_map(static fn (ImageData $level): int => $level->width, $built));
 
         // 320 wide: the 800 halving still oversamples it (2.5×), the 400 one
         // does not — sampling THAT would be a 1.25× copy that averages nothing.
@@ -257,7 +257,7 @@ final class ScaledSourceTest extends TestCase
         $this->assertNotSame([], Probe::get($scaled, 'levels'));
 
         $scaled->forScale($this->lineArt(1024, 1024), 0.03);
-        $this->assertSame([512], array_map(static fn (ImageData $level): int => $level->width, Probe::get($scaled, 'levels')));
+        $this->assertSame([512], \array_map(static fn (ImageData $level): int => $level->width, Probe::get($scaled, 'levels')));
     }
 
     /**
@@ -277,7 +277,7 @@ final class ScaledSourceTest extends TestCase
         $this->assertStringStartsWith("\x1b[38;2;0;0;0;48;2;0;0;0m", $nearest, 'nearest-neighbour reads x=0 and misses the line entirely');
 
         $averaged = HalfBlockRasterizer::render(new ScaledSource()->forScale($image, 0.1), $view, 2, 1)[0];
-        preg_match('/^\x1b\[38;2;(\d+);(\d+);(\d+)/', $averaged, $rgb);
+        \preg_match('/^\x1b\[38;2;(\d+);(\d+);(\d+)/', $averaged, $rgb);
         $this->assertGreaterThan(0, (int) $rgb[1], 'the averaged copy carries the line as a grey');
         $this->assertSame([$rgb[1], $rgb[1]], [$rgb[2], $rgb[3]], 'and it is neutral, not a colour cast');
     }

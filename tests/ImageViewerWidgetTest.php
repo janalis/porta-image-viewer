@@ -49,16 +49,16 @@ final class ImageViewerWidgetTest extends TestCase
 
     private static function plain(array $lines): string
     {
-        return implode("\n", array_map(AnsiUtils::stripAnsiCodes(...), $lines));
+        return \implode("\n", \array_map(AnsiUtils::stripAnsiCodes(...), $lines));
     }
 
     /** A 64×8 horizontal gradient (red channel = x*4) for pan-visible sampling. */
     private function gradient(): ImageData
     {
-        $gd = imagecreatetruecolor(64, height: 8);
+        $gd = \imagecreatetruecolor(64, height: 8);
         for ($x = 0; $x < 64; ++$x) {
             for ($y = 0; $y < 8; ++$y) {
-                imagesetpixel($gd, $x, $y, (int) imagecolorallocate($gd, $x * 4, green: 0, blue: 0));
+                \imagesetpixel($gd, $x, $y, (int) \imagecolorallocate($gd, $x * 4, green: 0, blue: 0));
             }
         }
 
@@ -68,7 +68,7 @@ final class ImageViewerWidgetTest extends TestCase
     public function testAFocusedPaneShowsAFocusFrameThatSurvivesNoAnsi(): void
     {
         $widget = new ImageViewerWidget(new FakeRasterizer(), new Translator('en'));
-        $plain = static fn (array $lines): string => implode("\n", array_map(AnsiUtils::stripAnsiCodes(...), $lines));
+        $plain = static fn (array $lines): string => \implode("\n", \array_map(AnsiUtils::stripAnsiCodes(...), $lines));
 
         $unfocused = $plain($widget->render(new RenderContext(12, 4)));
         $this->assertStringNotContainsString(Glyphs::FRAME_TOP_LEFT, $unfocused, 'no frame when the pane is blurred');
@@ -88,7 +88,7 @@ final class ImageViewerWidgetTest extends TestCase
     {
         $widget = new ImageViewerWidget(new FakeRasterizer(), new Translator('en'));
         $this->assertSame([], $widget->render(new RenderContext(10, 0)), 'zero rows');
-        $this->assertSame(array_fill(0, count: 3, value: str_repeat(' ', times: 10)), $widget->render(new RenderContext(10, 3)));
+        $this->assertSame(\array_fill(0, count: 3, value: \str_repeat(' ', times: 10)), $widget->render(new RenderContext(10, 3)));
         $this->assertSame('', $widget->zoomLabel(), 'no image, no label');
 
         $widget->handleInput('='); // zoom without an image is a no-op, not an error
@@ -128,17 +128,17 @@ final class ImageViewerWidgetTest extends TestCase
 
         $widget->handleInput('='); // zoom: the view fingerprint moves
         $zoomed = $widget->render($context);
-        $this->assertNotSame(implode('', $first), implode('', $zoomed), 'a zoom re-rasterizes');
+        $this->assertNotSame(\implode('', $first), \implode('', $zoomed), 'a zoom re-rasterizes');
 
         $this->assertNotSame($zoomed, $widget->render(new RenderContext(24, 6)), 'a resize re-rasterizes');
 
         // A DIFFERENT image with identical dimensions, view and geometry: the
         // generation counter is what must miss — an object-identity key could
         // be fooled by allocator reuse, a keyless memo would show stale pixels.
-        $gd = imagecreatetruecolor(64, height: 8); // flat black, unlike the gradient
+        $gd = \imagecreatetruecolor(64, height: 8); // flat black, unlike the gradient
         $widget->show('/p/b.png', new ImageData($gd, 64, 8, 124));
         $replacedFirst = $widget->render($context);
-        $this->assertNotSame(implode('', $first), implode('', $replacedFirst), 'a replaced image must not serve the previous picture');
+        $this->assertNotSame(\implode('', $first), \implode('', $replacedFirst), 'a replaced image must not serve the previous picture');
     }
 
     public function testADeferredVectorRefinementRastersItsNewPixelsNotTheMemo(): void
@@ -154,12 +154,12 @@ final class ImageViewerWidgetTest extends TestCase
 
         $widget->handleInput('='); // fit 0.5 → 1.0 (still the probe's own resolution)
         $widget->handleInput('='); // → 2.0: a sharper raster is now wanted
-        $zoomed = implode('', $widget->render($context)); // still the red probe, magnified
+        $zoomed = \implode('', $widget->render($context)); // still the red probe, magnified
         $this->assertStringContainsString('38;2;200;40;40', $zoomed);
 
         $this->rasterizer->nextPng = PngFixture::bytes(200, 100, [40, 200, 40]); // the green refinement
         $this->settle();
-        $refined = implode('', $widget->render($context));
+        $refined = \implode('', $widget->render($context));
         $this->assertStringContainsString('38;2;40;200;40', $refined, 'the refined raster shows — a stale memo would keep the probe');
     }
 
@@ -170,8 +170,8 @@ final class ImageViewerWidgetTest extends TestCase
         $widget->render(new RenderContext(8, 2)); // fit = min(8/64, 4/8) = 0.125
 
         $this->assertSame('Fit (13%)', $widget->zoomLabel());
-        $this->assertStringContainsString('▀', implode('', $widget->render(new RenderContext(8, 2))));
-        $this->assertStringContainsString('38;2;', implode('', $widget->render(new RenderContext(8, 2))));
+        $this->assertStringContainsString('▀', \implode('', $widget->render(new RenderContext(8, 2))));
+        $this->assertStringContainsString('38;2;', \implode('', $widget->render(new RenderContext(8, 2))));
 
         $widget->handleInput('='); // 0.125 → 0.25
         $this->assertSame('25%', $widget->zoomLabel());
@@ -199,7 +199,7 @@ final class ImageViewerWidgetTest extends TestCase
         $widget->handleInput('1'); // 100%, off the fit
 
         // What WheelRouter hands over for each notch of a Ctrl+scroll burst.
-        foreach (range(1, end: 4) as $ignored) {
+        foreach (\range(1, end: 4) as $ignored) {
             $widget->magnifyAt(1.08, 4, 1);
         }
         $this->assertSame('136%', $widget->zoomLabel(), 'four notches of 8%, not two rungs');
@@ -273,7 +273,7 @@ final class ImageViewerWidgetTest extends TestCase
 
         $this->assertSame([null], $this->rasterizer->scales, 'the first ask has no scale: that IS the size probe');
         $this->assertSame('100 × 50', $widget->statusInfo(), "the document's own pixels, from the converter");
-        $raw = implode("\n", $widget->render(new RenderContext(50, 13)));
+        $raw = \implode("\n", $widget->render(new RenderContext(50, 13)));
         $this->assertStringContainsString('▀', $raw, 'and it paints as half-blocks like any image');
         $this->assertStringContainsString('38;2;200;40;40', $raw);
         $this->assertContains('view', $handler->events, 'the status bar hears about it');
@@ -301,7 +301,7 @@ final class ImageViewerWidgetTest extends TestCase
         $deliver = $this->rasterizer->pendingPng;
         $this->assertNotNull($deliver);
         $deliver(PngFixture::bytes(100, 50));
-        $this->assertStringContainsString('▀', implode('', $widget->render(new RenderContext(40, 8))), 'delivery repaints');
+        $this->assertStringContainsString('▀', \implode('', $widget->render(new RenderContext(40, 8))), 'delivery repaints');
     }
 
     public function testAConverterFailureFillsThePaneWithItsReason(): void
@@ -330,7 +330,7 @@ final class ImageViewerWidgetTest extends TestCase
 
         $lines = $widget->render(new RenderContext(50, 13));
         $this->assertStringContainsString('XML parse error', self::plain($lines));
-        $this->assertStringContainsString('▀', implode('', $lines), 'the previous raster is still on screen');
+        $this->assertStringContainsString('▀', \implode('', $lines), 'the previous raster is still on screen');
     }
 
     public function testASameTabProbeThatChangesSizeIsFittedFreshNotKept(): void
@@ -415,7 +415,7 @@ final class ImageViewerWidgetTest extends TestCase
         $widget->handleInput('1'); // actual size
 
         // A Ctrl+scroll burst: several fractional steps, one resolution.
-        foreach (range(1, end: 3) as $ignored) {
+        foreach (\range(1, end: 3) as $ignored) {
             $widget->magnifyAt(1.08, 25, 6);
         }
         $this->assertSame('126%', $widget->zoomLabel());
@@ -455,7 +455,7 @@ final class ImageViewerWidgetTest extends TestCase
         $asked = $this->rasterizer->scales;
         $this->assertCount(2, $asked);
         $this->assertSame('400%', $widget->zoomLabel(), 'the ZOOM is not capped');
-        $this->assertEqualsWithDelta(sqrt(16_000_000 / (2000 * 1500)), (float) $asked[1], 0.01, 'but the raster is: 72 × sqrt(MAX_PIXELS / area)');
+        $this->assertEqualsWithDelta(\sqrt(16_000_000 / (2000 * 1500)), (float) $asked[1], 0.01, 'but the raster is: 72 × sqrt(MAX_PIXELS / area)');
     }
 
     public function testATabSwitchDropsThePendingRerender(): void
@@ -486,7 +486,7 @@ final class ImageViewerWidgetTest extends TestCase
         $plugin = require \dirname(__DIR__).'/plugin.php';
         $plugin->activate($api);
 
-        $declared = array_column($api->bufferedActions(), 'id');
+        $declared = \array_column($api->bufferedActions(), 'id');
         /** @var array<string, list<string>> $bound */
         $bound = Probe::invokeStatic(ImageViewerWidget::class, 'getDefaultKeybindings');
 
@@ -494,11 +494,11 @@ final class ImageViewerWidgetTest extends TestCase
         // actions (goto_file, next_buffer…) and those are the catalog's rows,
         // not this plugin's. What must match is the remainder: the actions that
         // exist only because this plugin exists.
-        $ours = array_keys(array_diff_key($bound, ActionCatalog::ACTIONS));
+        $ours = \array_keys(\array_diff_key($bound, ActionCatalog::ACTIONS));
 
         $this->assertNotSame([], $declared);
-        sort($declared);
-        sort($ours);
+        \sort($declared);
+        \sort($ours);
         $this->assertSame($ours, $declared, 'every declared action is bound, and every key core does not declare is declared here');
     }
 }

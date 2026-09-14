@@ -42,7 +42,7 @@ final class ZoomPanModel
     /** The factor actually applied for a pane of $cols × $pxRows (fit resolves here). */
     public function effectiveScale(int $cols, int $pxRows): float
     {
-        return $this->scale ?? min($cols / $this->imgW, $pxRows / $this->imgH);
+        return $this->scale ?? \min($cols / $this->imgW, $pxRows / $this->imgH);
     }
 
     /**
@@ -95,8 +95,8 @@ final class ZoomPanModel
     {
         $ladder = $this->steps ?? self::STEPS;
         $old = $this->effectiveScale($cols, $pxRows);
-        $new = max($ladder[0], min($old * $factor, $ladder[\count($ladder) - 1]));
-        if (abs($new - $old) > 1e-9) {
+        $new = \max($ladder[0], \min($old * $factor, $ladder[\count($ladder) - 1]));
+        if (\abs($new - $old) > 1e-9) {
             $this->applyAt($new, $anchorCol, $anchorHalfRow, $cols, $pxRows);
         }
     }
@@ -110,13 +110,13 @@ final class ZoomPanModel
     {
         $old = $this->effectiveScale($cols, $pxRows);
         $rect = $this->visibleRect($cols, $pxRows);
-        $pX = max(0.0, min((float) $this->imgW, $rect['srcX'] + (($anchorCol - $rect['padCols']) / $old)));
-        $pY = max(0.0, min((float) $this->imgH, $rect['srcY'] + (($anchorHalfRow - $rect['padHalfRows']) / $old)));
+        $pX = \max(0.0, \min((float) $this->imgW, $rect['srcX'] + (($anchorCol - $rect['padCols']) / $old)));
+        $pY = \max(0.0, \min((float) $this->imgH, $rect['srcY'] + (($anchorHalfRow - $rect['padHalfRows']) / $old)));
 
         $this->scale = $new;
         $pads = $this->visibleRect($cols, $pxRows); // pads at the new scale (pan-independent)
-        $this->panX = $this->clampPan((int) round($pX - (($anchorCol - $pads['padCols']) / $new)), $this->imgW, $cols / $new);
-        $this->panY = $this->clampPan((int) round($pY - (($anchorHalfRow - $pads['padHalfRows']) / $new)), $this->imgH, $pxRows / $new);
+        $this->panX = $this->clampPan((int) \round($pX - (($anchorCol - $pads['padCols']) / $new)), $this->imgW, $cols / $new);
+        $this->panY = $this->clampPan((int) \round($pY - (($anchorHalfRow - $pads['padHalfRows']) / $new)), $this->imgH, $pxRows / $new);
     }
 
     public function fit(): void
@@ -139,11 +139,11 @@ final class ZoomPanModel
     public function panBy(int $dxCells, int $dyHalfRows, int $cols, int $pxRows): void
     {
         $scale = $this->effectiveScale($cols, $pxRows);
-        $dxPx = (int) round($dxCells / $scale);
+        $dxPx = (int) \round($dxCells / $scale);
         if (0 === $dxPx && 0 !== $dxCells) {
             $dxPx = $dxCells <=> 0;
         }
-        $dyPx = (int) round($dyHalfRows / $scale);
+        $dyPx = (int) \round($dyHalfRows / $scale);
         if (0 === $dyPx && 0 !== $dyHalfRows) {
             $dyPx = $dyHalfRows <=> 0;
         }
@@ -160,23 +160,23 @@ final class ZoomPanModel
     public function visibleRect(int $cols, int $pxRows): array
     {
         $scale = $this->effectiveScale($cols, $pxRows);
-        $outCols = min($cols, (int) round($this->imgW * $scale));
-        $outHalfRows = min($pxRows, (int) round($this->imgH * $scale));
+        $outCols = \min($cols, (int) \round($this->imgW * $scale));
+        $outHalfRows = \min($pxRows, (int) \round($this->imgH * $scale));
 
         return [
             'srcX' => $this->clampPan($this->panX, $this->imgW, $cols / $scale),
             'srcY' => $this->clampPan($this->panY, $this->imgH, $pxRows / $scale),
-            'padCols' => intdiv($cols - $outCols, num2: 2),
-            'padHalfRows' => intdiv($pxRows - $outHalfRows, num2: 2),
-            'outCols' => max(1, $outCols),
-            'outHalfRows' => max(1, $outHalfRows),
+            'padCols' => \intdiv($cols - $outCols, num2: 2),
+            'padHalfRows' => \intdiv($pxRows - $outHalfRows, num2: 2),
+            'outCols' => \max(1, $outCols),
+            'outHalfRows' => \max(1, $outHalfRows),
         ];
     }
 
     /** '200%', or 'Fit (37%)' while fitting. The label is numeric — no translation. */
     public function zoomLabel(int $cols, int $pxRows): string
     {
-        $percent = (int) round($this->effectiveScale($cols, $pxRows) * 100);
+        $percent = (int) \round($this->effectiveScale($cols, $pxRows) * 100);
 
         return null === $this->scale ? \sprintf('Fit (%d%%)', $percent) : \sprintf('%d%%', $percent);
     }
@@ -185,7 +185,7 @@ final class ZoomPanModel
     private function step(float $current, int $dir): ?float
     {
         $ladder = $this->steps ?? self::STEPS;
-        $steps = $dir > 0 ? $ladder : array_reverse($ladder);
+        $steps = $dir > 0 ? $ladder : \array_reverse($ladder);
         foreach ($steps as $step) {
             if ($dir > 0 ? $step > ($current + 1e-9) : $step < ($current - 1e-9)) {
                 return $step;
@@ -199,15 +199,15 @@ final class ZoomPanModel
     private function setScale(float $new, int $cols, int $pxRows): void
     {
         $old = $this->effectiveScale($cols, $pxRows);
-        $centerX = $this->panX + (min($this->imgW, $cols / $old) / 2);
-        $centerY = $this->panY + (min($this->imgH, $pxRows / $old) / 2);
+        $centerX = $this->panX + (\min($this->imgW, $cols / $old) / 2);
+        $centerY = $this->panY + (\min($this->imgH, $pxRows / $old) / 2);
         $this->scale = $new;
-        $this->panX = $this->clampPan((int) round($centerX - (($cols / $new) / 2)), $this->imgW, $cols / $new);
-        $this->panY = $this->clampPan((int) round($centerY - (($pxRows / $new) / 2)), $this->imgH, $pxRows / $new);
+        $this->panX = $this->clampPan((int) \round($centerX - (($cols / $new) / 2)), $this->imgW, $cols / $new);
+        $this->panY = $this->clampPan((int) \round($centerY - (($pxRows / $new) / 2)), $this->imgH, $pxRows / $new);
     }
 
     private function clampPan(int $pan, int $imgDim, float $viewDim): int
     {
-        return max(0, min($pan, (int) ceil(max(0, $imgDim - $viewDim))));
+        return \max(0, \min($pan, (int) \ceil(\max(0, $imgDim - $viewDim))));
     }
 }

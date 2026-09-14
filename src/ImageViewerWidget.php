@@ -216,11 +216,11 @@ final class ImageViewerWidget extends NavigablePaneWidget
     {
         // CEIL, not round: a continuous zoom (the Ctrl+scroll glide) would
         // otherwise ask the converter for a different size at every nudge.
-        $wanted = (float) (int) ceil(max(1.0, $viewScale));
+        $wanted = (float) (int) \ceil(\max(1.0, $viewScale));
         [$width, $height] = $this->view?->dimensions() ?? [1, 1];
-        $cap = sqrt(ImageDecoder::MAX_PIXELS / max(1, $width * $height));
+        $cap = \sqrt(ImageDecoder::MAX_PIXELS / \max(1, $width * $height));
 
-        return max(0.01, min($wanted, $cap));
+        return \max(0.01, \min($wanted, $cap));
     }
 
     /**
