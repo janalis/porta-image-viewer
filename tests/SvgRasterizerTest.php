@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Porta\ImageViewer\Tests;
 
 use PHPUnit\Framework\TestCase;
+use Porta\ImageViewer\ImageData;
 use Porta\ImageViewer\ImageDecoder;
 use Porta\ImageViewer\SvgConverter;
 use Porta\ImageViewer\SvgRasterizer;
@@ -53,7 +54,7 @@ final class SvgRasterizerTest extends TestCase
 
         $this->assertNull($error);
         $image = new ImageDecoder()->decodeBytes((string) $png);
-        $this->assertNotNull($image, 'the bytes decode as an image — no temp file in between');
+        $this->assertInstanceOf(ImageData::class, $image, 'the bytes decode as an image — no temp file in between');
         // The stub renders 100×50 at 1:1, which is how the viewer probes an
         // SVG's intrinsic size: it asks the converter instead of parsing units.
         $this->assertSame([100, 50], [$image->width, $image->height]);
@@ -65,7 +66,7 @@ final class SvgRasterizerTest extends TestCase
 
         [$png] = $this->render($rasterizer, self::SMALL_SVG, 2.5);
         $image = new ImageDecoder()->decodeBytes((string) $png);
-        $this->assertNotNull($image);
+        $this->assertInstanceOf(ImageData::class, $image);
         $this->assertSame([250, 125], [$image->width, $image->height], 'librsvg -z 2.5');
     }
 
@@ -81,7 +82,7 @@ final class SvgRasterizerTest extends TestCase
             $this->assertSame(SvgConverter::Magick, SvgConverter::forBinary('/usr/bin/magick'));
             [$png] = $this->render(new SvgRasterizer(\sys_get_temp_dir(), $magick), self::SMALL_SVG, 2.5);
             $image = new ImageDecoder()->decodeBytes((string) $png);
-            $this->assertNotNull($image);
+            $this->assertInstanceOf(ImageData::class, $image);
             $this->assertSame([250, 125], [$image->width, $image->height], '-density 240 is -z 2.5');
         } finally {
             \unlink($magick);
@@ -193,7 +194,7 @@ final class SvgRasterizerTest extends TestCase
         [$png, $error] = $this->render($rasterizer, self::SMALL_SVG, 2.0);
         $this->assertNull($error);
         $image = new ImageDecoder()->decodeBytes((string) $png);
-        $this->assertNotNull($image, 'a real converter emitted a decodable PNG');
+        $this->assertInstanceOf(ImageData::class, $image, 'a real converter emitted a decodable PNG');
         $this->assertSame([200, 100], [$image->width, $image->height], 'and honoured the scale');
     }
 }

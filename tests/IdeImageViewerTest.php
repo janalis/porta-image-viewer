@@ -21,9 +21,11 @@ use Porta\Tests\Support\Services;
 use Porta\Tests\Support\TempProject;
 use Porta\Tests\Support\UsesBundledPlugins;
 use Porta\Widget\CodeEditorWidget;
+use Porta\Widget\EditorPaneWidget;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
 use Symfony\Component\Tui\Terminal\VirtualTerminal;
 use Symfony\Component\Tui\Tui;
+use Symfony\Component\Tui\Widget\WidgetContext;
 
 /**
  * The inline image viewer: half-block rendering, zoom/pan, tab
@@ -70,7 +72,7 @@ final class IdeImageViewerTest extends TestCase
             [
                 200 => function ($tui, $terminal, Ide $ide): void {
                     $pane = Services::resolve($ide, EditorPanes::class)->paneFor('image');
-                    $this->assertNotNull($pane, 'the bundled plugin registered its pane');
+                    $this->assertInstanceOf(EditorPaneWidget::class, $pane, 'the bundled plugin registered its pane');
                     $this->assertInstanceOf(BufferNavigator::class, Probe::get($pane, 'handler'));
                 },
             ],
@@ -202,7 +204,7 @@ final class IdeImageViewerTest extends TestCase
                     $tui->handleInput("\x1b[1;5D"); // ctrl+left → back to the code tab
                     $this->frame($tui);
                     $this->assertStringEndsWith('a.php', (string) $tui->getById('editor')->getFilePath());
-                    $this->assertNotNull($tui->getById('editor')->getContext(), 'the editor is re-attached');
+                    $this->assertInstanceOf(WidgetContext::class, $tui->getById('editor')->getContext(), 'the editor is re-attached');
                     $tui->handleInput("\x1b[1;5C"); // ctrl+right → the image again
                 },
                 480 => function (Tui $tui, VirtualTerminal $terminal, Ide $ide) use ($project): void {
@@ -226,7 +228,7 @@ final class IdeImageViewerTest extends TestCase
                 620 => function (Tui $tui, $terminal): void {
                     $this->frame($tui);
                     $this->assertStringEndsWith('a.php', (string) $tui->getById('editor')->getFilePath(), 'closing the image tab restores the editor');
-                    $this->assertNotNull($tui->getById('editor')->getContext());
+                    $this->assertInstanceOf(WidgetContext::class, $tui->getById('editor')->getContext());
                 },
             ],
         );
@@ -307,7 +309,7 @@ final class IdeImageViewerTest extends TestCase
                 340 => function (Tui $tui): void {
                     $this->frame($tui);
                     $this->assertNull($tui->getById('editor')->getFilePath(), 'empty editor after the last tab closed');
-                    $this->assertNotNull($tui->getById('editor')->getContext(), 'editor pane restored');
+                    $this->assertInstanceOf(WidgetContext::class, $tui->getById('editor')->getContext(), 'editor pane restored');
                     $this->assertSame('tree', $tui->getFocus()?->getId());
                 },
             ],

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Porta\ImageViewer\Tests;
 
 use PHPUnit\Framework\TestCase;
+use Porta\ImageViewer\ImageData;
 use Porta\ImageViewer\ImageDecoder;
 use Porta\Tests\Support\TempProject;
 
@@ -37,7 +38,7 @@ final class ImageDecoderTest extends TestCase
         $decoder = new ImageDecoder();
         foreach (['a.png', 'a.jpg', 'a.gif', 'a.webp', 'a.bmp'] as $file) {
             $image = $decoder->decode($project->path($file));
-            $this->assertNotNull($image, $file);
+            $this->assertInstanceOf(ImageData::class, $image, $file);
             $this->assertSame(3, $image->width, $file);
             $this->assertSame(2, $image->height, $file);
             $this->assertTrue(\imageistruecolor($image->gd), "{$file} normalized to truecolor");
@@ -46,7 +47,7 @@ final class ImageDecoderTest extends TestCase
 
         // PNG is lossless: pixels survive exactly.
         $png = $decoder->decode($project->path('a.png'));
-        $this->assertNotNull($png);
+        $this->assertInstanceOf(ImageData::class, $png);
         $red = \imagecolorat($png->gd, x: 0, y: 0);
         $this->assertIsInt($red);
         $this->assertSame([255, 0, 0], [($red >> 16) & 0xFF, ($red >> 8) & 0xFF, $red & 0xFF]);
@@ -54,7 +55,7 @@ final class ImageDecoderTest extends TestCase
         // The GIF path exercises the palette → truecolor branch (quantization may
         // shift channels slightly, so only assert the dominant one).
         $gif = $decoder->decode($project->path('a.gif'));
-        $this->assertNotNull($gif);
+        $this->assertInstanceOf(ImageData::class, $gif);
         $pixel = \imagecolorat($gif->gd, x: 0, y: 0);
         $this->assertIsInt($pixel);
         $this->assertGreaterThan(200, ($pixel >> 16) & 0xFF, 'red channel survives quantization');
@@ -70,7 +71,7 @@ final class ImageDecoderTest extends TestCase
         $gd = \imagecreatetruecolor(4, height: 4);
         \imagepng($gd, $project->path('big.png'));
         $this->assertNull(new ImageDecoder(maxPixels: 15)->decode($project->path('big.png')), '16 px > 15 px cap');
-        $this->assertNotNull(new ImageDecoder(maxPixels: 16)->decode($project->path('big.png')), 'exactly at the cap');
+        $this->assertInstanceOf(ImageData::class, new ImageDecoder(maxPixels: 16)->decode($project->path('big.png')), 'exactly at the cap');
     }
 
     public function testWithoutGdEveryImageIsPolitelyUndecodable(): void
@@ -83,6 +84,6 @@ final class ImageDecoderTest extends TestCase
         \imagepng($gd, $project->path('ok.png'));
 
         $this->assertNull(new ImageDecoder(gdAvailable: false)->decode($project->path('ok.png')));
-        $this->assertNotNull(new ImageDecoder()->decode($project->path('ok.png')), 'the default detects the loaded extension');
+        $this->assertInstanceOf(ImageData::class, new ImageDecoder()->decode($project->path('ok.png')), 'the default detects the loaded extension');
     }
 }
