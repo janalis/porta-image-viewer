@@ -145,7 +145,7 @@ final class SvgRasterizerTest extends TestCase
     public function testWithoutAConverterItErrorsWithoutSpawning(): void
     {
         \putenv('PATH=/nonexistent');
-        $rasterizer = new SvgRasterizer(\sys_get_temp_dir(), null);
+        $rasterizer = new SvgRasterizer(\sys_get_temp_dir());
         $error = null;
         $rasterizer->rasterize(
             self::SMALL_SVG,
@@ -187,7 +187,7 @@ final class SvgRasterizerTest extends TestCase
     public function testARealConverterRendersTheDocument(): void
     {
         $this->skipWithoutSvgConverter();
-        $rasterizer = new SvgRasterizer(\sys_get_temp_dir(), null);
+        $rasterizer = new SvgRasterizer(\sys_get_temp_dir());
         $this->assertNotNull($rasterizer->binary(), 'discovery found the installed converter');
 
         [$png, $error] = $this->render($rasterizer, self::SMALL_SVG, 2.0);
