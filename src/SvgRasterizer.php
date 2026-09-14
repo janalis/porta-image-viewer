@@ -18,7 +18,7 @@ use Symfony\Component\Process\ExecutableFinder;
  * Which converter, and how it is driven, is {@see SvgConverter}: an explicit
  * path (the `svgConverter` setting) wins over discovery, the `dotPath` pattern.
  */
-final class SvgRasterizer implements Rasterizer
+final readonly class SvgRasterizer implements Rasterizer
 {
     /**
      * @param null|(\Closure(): ?string)|string $converterPath the "SVG converter" setting; '' resolves to
@@ -27,9 +27,9 @@ final class SvgRasterizer implements Rasterizer
      *                                                         restart — the AbstractToolPlugin::binary() idiom
      */
     public function __construct(
-        private readonly string $rootDir,
-        private readonly \Closure|string|null $converterPath = null,
-        private readonly SingleSlotProcess $slot = new SingleSlotProcess(),
+        private string $rootDir,
+        private \Closure|string|null $converterPath = null,
+        private SingleSlotProcess $slot = new SingleSlotProcess(),
     ) {}
 
     public function binary(): ?string

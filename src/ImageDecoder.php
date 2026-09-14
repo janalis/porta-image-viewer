@@ -13,7 +13,7 @@ use Porta\Support\ProjectPaths;
  * read every pixel with one `imagecolorat` contract. Caps both the encoded
  * bytes and the decoded pixel count — a small JPEG can decode to a huge bitmap.
  */
-final class ImageDecoder
+final readonly class ImageDecoder
 {
     /** @var list<string> extensions routed to the viewer instead of the text editor */
     public const array EXTENSIONS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'];
@@ -22,10 +22,10 @@ final class ImageDecoder
     public const int MAX_PIXELS = 16_000_000;
 
     /** Resolved once — ext-gd is a suggestion, not a requirement, of the host. */
-    private readonly bool $gdAvailable;
+    private bool $gdAvailable;
 
     public function __construct(
-        private readonly int $maxPixels = self::MAX_PIXELS,
+        private int $maxPixels = self::MAX_PIXELS,
         ?bool $gdAvailable = null,
     ) {
         $this->gdAvailable = $gdAvailable ?? \function_exists('imagecreatefromstring');
