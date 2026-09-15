@@ -114,6 +114,7 @@ final class IdeImageViewerTest extends TestCase
                 480 => function (Tui $tui, VirtualTerminal $terminal): void {
                     $this->frame($tui);
                     $this->assertStringContainsString('200%', $terminal->getOutput(), 'ctrl+wheel zoomed a ladder step');
+                    $this->pump(0.15); // past ZoomGesture's 0.1s burst window: a lone notch steps, not glides
                     $tui->handleInput("\x1b[<81;80;10M"); // ctrl+wheel down → back out
                     $this->assertSame('100%', $tui->getById('image-viewer')->zoomLabel());
                     $this->assertSame('image-viewer', $tui->getFocus()?->getId(), 'click over the image keeps the viewer focused');
@@ -168,9 +169,11 @@ final class IdeImageViewerTest extends TestCase
                     }
                     $this->assertSame('272%', $viewer->zoomLabel(), '200% × 1.08⁴ — between the rungs');
                 },
-                // A later step is >100ms away, so this notch stands alone again
-                // and snaps to the rung above 272%.
+                // Past ZoomGesture's 0.1s burst window, this notch stands alone
+                // again and snaps to the rung above 272%. The wait is the subject,
+                // so it is pumped here rather than left to a step gap.
                 400 => function ($tui): void {
+                    $this->pump(0.15);
                     $tui->handleInput("\x1b[<80;40;10M");
                     $this->assertSame('400%', $tui->getById('image-viewer')->zoomLabel(), 'an isolated notch still steps');
                 },
