@@ -127,9 +127,12 @@ final class IdeImageViewerTest extends TestCase
                     $this->assertStringContainsString('Not available in this view', AnsiUtils::stripAnsiCodes($terminal->getOutput()));
                     // The menu composites over the image pane (no hole), and closing
                     // it restores focus to the viewer (editor-area-aware default).
-                    $tui->handleInput("\x1b[21~"); // F10 → menu
-                    $this->awaitPainted($tui, $terminal, 'Ctrl+Q');
-                    $this->assertStringContainsString('Ctrl+Q', AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'the File dropdown composites over the image');
+                    $tui->handleInput("\x1b[21~"); // F10 arms the bar
+                    $tui->handleInput("\x1b[B"); // ↓ drops File
+                    // Not `Ctrl+Q`: the status bar's legend always shows that,
+                    // so it proved nothing about the dropdown.
+                    $this->awaitPainted($tui, $terminal, 'Save File');
+                    $this->assertStringContainsString('Save File', AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'the File dropdown composites over the image');
                     $tui->handleInput("\x1b"); // close the menu
                 },
                 620 => function ($tui): void {
