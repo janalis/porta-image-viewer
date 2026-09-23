@@ -84,6 +84,30 @@ final class ImageViewerWidgetTest extends TestCase
         }
     }
 
+    /**
+     * The focus frame is drawn over whatever the pane shows, a message included.
+     * A 12-column error `ab中中中中中` puts its last 中 on columns 10-11, across
+     * the right rail's column: sliced non-strict from column 1, that glyph came
+     * back whole, the framed row was 13 columns wide, and the renderer throws on
+     * an over-wide row. The rail covers the glyph's right half; its left half is blank.
+     */
+    public function testTheFocusFrameKeepsAWideGlyphUnderTheRailPaneWide(): void
+    {
+        $this->rasterizer->deferred = true;
+        $widget = $this->vectorWidget();
+        $widget->show('/p/a.svg', '<svg viewBox="0 0 100 50"/>');
+        $fail = $this->rasterizer->pendingError;
+        $this->assertNotNull($fail);
+        $fail('ab中中中中中');
+        $widget->setFocused(true);
+
+        $lines = $widget->render(new RenderContext(12, 5));
+        foreach ($lines as $i => $line) {
+            $this->assertSame(12, AnsiUtils::visibleWidth($line), 'row '.$i);
+        }
+        $this->assertSame(Glyphs::FRAME_VERTICAL.'b中中中中 '.Glyphs::FRAME_VERTICAL, AnsiUtils::stripAnsiCodes($lines[2]));
+    }
+
     public function testRendersBlankWithoutAnImageAndNothingOnAZeroSizePane(): void
     {
         $widget = new ImageViewerWidget(new FakeRasterizer(), new Translator('en'));
