@@ -290,7 +290,7 @@ final class ImageViewerWidget extends NavigablePaneWidget
             $lines[0] = $this->errorBanner($this->error, $cols);
         }
 
-        return $this->withMenuOverlay($lines, $cols);
+        return $lines;
     }
 
     /**
