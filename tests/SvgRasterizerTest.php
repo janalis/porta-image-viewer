@@ -12,6 +12,7 @@ use Porta\ImageViewer\SvgRasterizer;
 use Porta\Tests\Support\PreservesPath;
 use Porta\Tests\Support\PumpsLoop;
 use Porta\Tests\Support\SvgConverterBinary;
+use Porta\Tests\Support\TempProject;
 
 final class SvgRasterizerTest extends TestCase
 {
@@ -183,6 +184,21 @@ final class SvgRasterizerTest extends TestCase
         $configured = self::stub();
 
         $this->assertSame(self::stub(), $rasterizer->binary(), 'the new value is picked up with no rebuild');
+    }
+
+    /**
+     * Discovery walks PATH for a converter by name, whatever machine this runs
+     * on: the real-converter test below skips where none is installed (a CI
+     * runner), and discovery must not go untested there.
+     */
+    public function testDiscoveryFindsAConverterOnThePath(): void
+    {
+        $bin = new TempProject([], 'porta-svgbin-');
+        \symlink(self::stub(), $bin->path('rsvg-convert'));
+        \putenv('PATH='.$bin->dir);
+
+        $this->assertSame(SvgConverter::Rsvg, SvgConverter::discover());
+        $this->assertSame($bin->path('rsvg-convert'), new SvgRasterizer(\sys_get_temp_dir())->binary());
     }
 
     public function testARealConverterRendersTheDocument(): void
