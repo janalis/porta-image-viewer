@@ -145,8 +145,8 @@ trait ZoomPanPane
         $rail = $accent->apply(Glyphs::FRAME_VERTICAL);
         for ($r = 1; $r < ($rows - 1); ++$r) {
             // Exactly $cols - 2 between the rails, even with a wide glyph of a
-            // message under one of them (AnsiText::columnsFrom says why).
-            $lines[$r] = $rail.AnsiText::padRight(AnsiText::columnsFrom($lines[$r], 1, $cols - 2), $cols - 2).$rail;
+            // message under one of them: its cut half is a blank, nothing shifts.
+            $lines[$r] = $rail.AnsiUtils::sliceToWidth($lines[$r], 1, $cols - 2).$rail;
         }
 
         return $lines;
