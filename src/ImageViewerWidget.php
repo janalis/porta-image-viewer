@@ -9,6 +9,7 @@ use Porta\Support\DebouncedRequest;
 use Porta\Support\RevoltScheduler;
 use Porta\Support\Scheduler;
 use Porta\Support\Text;
+use Porta\Ui\Glyphs;
 use Porta\Ui\Role;
 use Porta\Ui\Theme\Styles;
 use Porta\Widget\NavigablePaneWidget;
@@ -317,7 +318,7 @@ final class ImageViewerWidget extends NavigablePaneWidget
         }
         $message = match (true) {
             null !== $this->error => Text::firstLine($this->error),
-            $this->rasterizing => '⏳ '.$this->translator->trans('rendering…'),
+            $this->rasterizing => Glyphs::WORKING.' '.$this->translator->trans('rendering…'),
             default => '',
         };
 
