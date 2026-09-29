@@ -53,9 +53,45 @@ trait ZoomPanPane
     /** The translated key hints of this pane's status segment. */
     abstract protected function keysHint(): string;
 
+    /** The terminal-drawn picture, when a graphics channel was handed in; null paints half-blocks. */
+    private readonly ?PixelPlacement $pixels;
+
+    /** Screen pixels one pane column spans right now ({@see ZoomPanModel::setPixelsPerColumn()}). */
+    private function pixelsPerColumn(): int
+    {
+        return $this->pixels?->pixelsPerColumn() ?? 1;
+    }
+
+    /**
+     * The head of every frame: remember the pane size the keys act on, count
+     * the zoom in the pixels the pane is drawn in, and ask for whatever sharper
+     * render the fit now wants (the fit scale depends on the pane size, which
+     * is only known here; the wanted-resolution guard makes that a float
+     * compare on every other frame).
+     */
+    private function beginFrame(int $cols, int $rows): void
+    {
+        $this->lastCols = $cols;
+        $this->lastRows = $rows;
+        $this->syncPixelsPerColumn();
+        $this->scheduleRefine();
+    }
+
+    /**
+     * Bring the model's unit up to date. From the render AND from the label:
+     * the status bar can ask for the label before the pane has rendered, and
+     * would otherwise count the zoom in half-block columns.
+     */
+    private function syncPixelsPerColumn(): void
+    {
+        $this->view?->setPixelsPerColumn($this->pixelsPerColumn());
+    }
+
     /** The status bar's zoom text ('Fit (37%)' / '200%'), '' when nothing is shown. */
     public function zoomLabel(): string
     {
+        $this->syncPixelsPerColumn();
+
         return null === $this->view ? '' : $this->view->zoomLabel($this->lastCols, 2 * $this->lastRows);
     }
 

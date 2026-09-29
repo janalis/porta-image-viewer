@@ -10,6 +10,7 @@ use Porta\Support\RevoltScheduler;
 use Porta\Support\Scheduler;
 use Porta\Support\Text;
 use Porta\Ui\Glyphs;
+use Porta\Ui\Graphics\TerminalGraphics;
 use Porta\Ui\Role;
 use Porta\Ui\Theme\Styles;
 use Porta\Widget\NavigablePaneWidget;
@@ -59,12 +60,16 @@ final class ImageViewerWidget extends NavigablePaneWidget
         private readonly Translator $translator,
         ?Scheduler $scheduler = null,
         ?Styles $styles = null,
+        // Trailing and optional: without it the pane paints half-blocks, which
+        // is also what it paints while the terminal has not answered yet.
+        ?TerminalGraphics $graphics = null,
     ) {
         $this->initStyles($styles);
         // Hand-built by its plugin, so the id #[AsWidget] used to apply is set here.
         $this->setId('image-viewer');
         $this->pending = new DebouncedRequest($scheduler ?? new RevoltScheduler(), self::RENDER_DEBOUNCE);
         $this->scaled = new ScaledSource();
+        $this->pixels = null !== $graphics ? new PixelPlacement($graphics, $this->afterViewChange(...)) : null;
     }
 
     public function paneId(): string
@@ -148,6 +153,7 @@ final class ImageViewerWidget extends NavigablePaneWidget
         $this->svg = null;
         $this->svgPath = null;
         $this->rasterScale = 1.0;
+        $this->pixels?->forget();
         $this->pending->reset();
         $this->rasterizing = false;
         $this->error = null;
@@ -215,9 +221,12 @@ final class ImageViewerWidget extends NavigablePaneWidget
      */
     private function scaleFor(float $viewScale): float
     {
+        // Drawn by the terminal, one column is a whole cell of screen pixels,
+        // and the raster has to cover those to look sharp.
+        $perColumn = $this->pixelsPerColumn();
         // CEIL, not round: a continuous zoom (the Ctrl+scroll glide) would
         // otherwise ask the converter for a different size at every nudge.
-        $wanted = (float) (int) \ceil(\max(1.0, $viewScale));
+        $wanted = (float) (int) \ceil(\max(1.0, $viewScale * $perColumn));
         [$width, $height] = $this->view?->dimensions() ?? [1, 1];
         $cap = \sqrt(ImageDecoder::MAX_PIXELS / \max(1, $width * $height));
 
@@ -272,11 +281,7 @@ final class ImageViewerWidget extends NavigablePaneWidget
         if ($cols < 1 || $rows < 1) {
             return [];
         }
-        $this->lastCols = $cols;
-        $this->lastRows = $rows;
-        // The fit scale depends on the pane size, which is only known here; the
-        // wanted-scale guard makes this a float compare on every other frame.
-        $this->scheduleRefine();
+        $this->beginFrame($cols, $rows);
         $lines = $this->contentLines($cols, $rows);
 
         // A caret-less, row-less pane still needs a focus cue like its siblings:
@@ -303,6 +308,10 @@ final class ImageViewerWidget extends NavigablePaneWidget
     private function contentLines(int $cols, int $rows): array
     {
         if (null !== $this->image && null !== $this->view) {
+            $pixels = $this->pixels?->render($this->image, $this->rasterScale, $this->view, $cols, $rows);
+            if (null !== $pixels) {
+                return $pixels; // cheap to build, and the placement dedupes itself
+            }
             $key = $this->imageGeneration.':'.$this->view->stateKey().':'.$cols.':'.$rows;
             if (null === $this->rasterMemo || $key !== $this->rasterKey) {
                 $this->rasterKey = $key;

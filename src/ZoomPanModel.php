@@ -21,6 +21,15 @@ final class ZoomPanModel
     private int $panX = 0;
     private int $panY = 0;
 
+    /**
+     * Screen pixels one column spans: 1 under half-blocks, where a column IS
+     * the pixel the ladder was drawn for, and a whole cell's width when the
+     * terminal draws pixels — where the ladder, 100% and the label all mean
+     * real screen pixels, or 12.5% would already be twice life-size and the
+     * zoom could not go below fit.
+     */
+    private float $unit = 1.0;
+
     /** @param ?list<float> $steps a custom zoom ladder — the graph viewer's fit scales sit far below the image ladder's 12.5% floor */
     public function __construct(
         private readonly int $imgW,
@@ -40,6 +49,12 @@ final class ZoomPanModel
     }
 
     /** The factor actually applied for a pane of $cols × $pxRows (fit resolves here). */
+    /** Say what one column is worth in screen pixels ({@see $unit}). */
+    public function setPixelsPerColumn(float $unit): void
+    {
+        $this->unit = \max(1.0, $unit);
+    }
+
     public function effectiveScale(int $cols, int $pxRows): float
     {
         return $this->scale ?? \min($cols / $this->imgW, $pxRows / $this->imgH);
@@ -93,7 +108,7 @@ final class ZoomPanModel
      */
     public function magnifyAt(float $factor, int $anchorCol, int $anchorHalfRow, int $cols, int $pxRows): void
     {
-        $ladder = $this->steps ?? self::STEPS;
+        $ladder = $this->ladder();
         $old = $this->effectiveScale($cols, $pxRows);
         $new = \max($ladder[0], \min($old * $factor, $ladder[\count($ladder) - 1]));
         if (\abs($new - $old) > 1e-9) {
@@ -128,7 +143,7 @@ final class ZoomPanModel
 
     public function actualSize(int $cols, int $pxRows): void
     {
-        $this->setScale(1.0, $cols, $pxRows);
+        $this->setScale(1.0 / $this->unit, $cols, $pxRows);
     }
 
     /**
@@ -176,7 +191,7 @@ final class ZoomPanModel
     /** '200%', or 'Fit (37%)' while fitting. The label is numeric — no translation. */
     public function zoomLabel(int $cols, int $pxRows): string
     {
-        $percent = (int) \round($this->effectiveScale($cols, $pxRows) * 100);
+        $percent = (int) \round($this->effectiveScale($cols, $pxRows) * $this->unit * 100);
 
         return null === $this->scale ? \sprintf('Fit (%d%%)', $percent) : \sprintf('%d%%', $percent);
     }
@@ -184,7 +199,7 @@ final class ZoomPanModel
     /** The next ladder rung in $dir, or null when none exists in that direction. */
     private function step(float $current, int $dir): ?float
     {
-        $ladder = $this->steps ?? self::STEPS;
+        $ladder = $this->ladder();
         $steps = $dir > 0 ? $ladder : \array_reverse($ladder);
         foreach ($steps as $step) {
             if ($dir > 0 ? $step > ($current + 1e-9) : $step < ($current - 1e-9)) {
@@ -193,6 +208,17 @@ final class ZoomPanModel
         }
 
         return null; // already past the ladder's end in that direction
+    }
+
+    /**
+     * The zoom ladder in this pane's own scale: the rungs are screen pixels per
+     * document pixel, so a column worth $unit pixels divides them.
+     *
+     * @return list<float>
+     */
+    private function ladder(): array
+    {
+        return \array_map(fn (float $step): float => $step / $this->unit, $this->steps ?? self::STEPS);
     }
 
     /** Re-anchor so the image point at the viewport center stays centered. */

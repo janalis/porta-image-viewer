@@ -220,4 +220,33 @@ final class ZoomPanModelTest extends TestCase
         $view->zoomIn(80, 48);
         $this->assertSame('13%', $view->zoomLabel(80, 48), 'the custom ceiling rung caps zoomIn');
     }
+
+    public function testDrawnInPixelsTheLadderCountsScreenPixels(): void
+    {
+        // 800×600 fits a 100×60 pane at 0.125 — with 16-pixel cells that is
+        // twice life size, so the zoom can go BELOW fit, down to 12.5% of it.
+        $view = new ZoomPanModel(800, 600);
+        $view->setPixelsPerColumn(16.0);
+        $this->assertSame('Fit (200%)', $view->zoomLabel(100, 120));
+
+        $view->zoomOut(100, 120);
+        $this->assertSame('100%', $view->zoomLabel(100, 120));
+        $this->assertEqualsWithDelta(1 / 16, $view->effectiveScale(100, 120), 1e-9);
+
+        $view->actualSize(100, 120);
+        $this->assertEqualsWithDelta(1 / 16, $view->effectiveScale(100, 120), 1e-9, 'actual size is one image pixel per screen pixel');
+
+        $view->magnifyAt(1000.0, 0, 0, 100, 120);
+        $this->assertSame('800%', $view->zoomLabel(100, 120), 'the ladder top, in screen pixels');
+    }
+
+    public function testAColumnIsNeverWorthLessThanOnePixel(): void
+    {
+        $view = new ZoomPanModel(800, 600);
+        $view->setPixelsPerColumn(0.5);
+
+        $view->actualSize(100, 120);
+        $this->assertSame('100%', $view->zoomLabel(100, 120));
+        $this->assertEqualsWithDelta(1.0, $view->effectiveScale(100, 120), 1e-9);
+    }
 }

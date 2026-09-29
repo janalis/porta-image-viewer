@@ -97,7 +97,7 @@ return new class('image-viewer') extends AbstractPlugin {
         ]);
         $api->registerPane(
             'image',
-            static fn (PaneServices $pane): EditorPaneWidget => new ImageViewerWidget($svg, $pane->translator, $pane->scheduler, $pane->styles),
+            static fn (PaneServices $pane): EditorPaneWidget => new ImageViewerWidget($svg, $pane->translator, $pane->scheduler, $pane->styles, $pane->graphics),
             // A bitmap rides as decoded pixels, an SVG as its SOURCE — the pane
             // rasterizes that per zoom level, so which pixels depends on the zoom.
             // No size guard on the vector branch: there is no decoder to protect,
