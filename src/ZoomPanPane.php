@@ -9,6 +9,7 @@ use Porta\Support\Text;
 use Porta\Ui\Glyphs;
 use Porta\Ui\Role;
 use Porta\Widget\NavigablePaneWidget;
+use Porta\Workbench\StatusClickSpan;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
 
 /**
@@ -29,6 +30,11 @@ trait ZoomPanPane
 {
     /** How long a zoom has to settle before a sharper render is asked for. */
     private const float RENDER_DEBOUNCE = 0.15;
+
+    /** The status bar's zoom cells' actions ({@see statusClicks()}). */
+    private const string STATUS_ZOOM_IN = 'zoom_in';
+    private const string STATUS_ZOOM_OUT = 'zoom_out';
+    private const string STATUS_ZOOM_FIT = 'zoom_fit';
 
     /** The shown document's zoom/pan state; null while nothing is shown. */
     private ?ZoomPanModel $view = null;
@@ -102,7 +108,56 @@ trait ZoomPanPane
      */
     public function statusRight(): string
     {
-        return \trim(\sprintf('%s  %s  %s', $this->statusInfo(), $this->zoomLabel(), $this->keysHint()));
+        return \implode('  ', $this->statusParts());
+    }
+
+    /**
+     * The zoom hints answer the pointer as their keys do: `+` zooms in, `-`
+     * out, and the fit hint fits. Found by the key that leads each hint, not
+     * by where the words fall — every catalog keeps the keys and their order,
+     * two spaces apart, and a translated word only moves them.
+     *
+     * @return list<StatusClickSpan>
+     */
+    public function statusClicks(): array
+    {
+        if (null === $this->view) {
+            return [];
+        }
+        $parts = $this->statusParts();
+        $hints = (string) \array_pop($parts);
+        $at = AnsiUtils::visibleWidth(\implode('  ', $parts)) + 2; // the view is shown: the zoom label leads the hints
+        $spans = [];
+        foreach (\explode('  ', $hints) as $hint) {
+            $width = AnsiUtils::visibleWidth($hint);
+            match (\explode(' ', $hint)[0]) {
+                '+/-' => \array_push($spans, new StatusClickSpan($at, $at + 1, self::STATUS_ZOOM_IN), new StatusClickSpan($at + 2, $at + 3, self::STATUS_ZOOM_OUT)),
+                '0' => $spans[] = new StatusClickSpan($at, $at + $width, self::STATUS_ZOOM_FIT),
+                default => null,
+            };
+            $at += $width + 2;
+        }
+
+        return $spans;
+    }
+
+    /** A click on one of {@see statusClicks()}: the gesture its key makes. */
+    public function runStatusAction(string $action): bool
+    {
+        match ($action) {
+            self::STATUS_ZOOM_IN => $this->zoom(1),
+            self::STATUS_ZOOM_OUT => $this->zoom(-1),
+            self::STATUS_ZOOM_FIT => $this->withView(static fn (ZoomPanModel $v) => $v->fit()),
+            default => null,
+        };
+
+        return \in_array($action, [self::STATUS_ZOOM_IN, self::STATUS_ZOOM_OUT, self::STATUS_ZOOM_FIT], strict: true);
+    }
+
+    /** @return list<string> the summary, the zoom and the hints, each there only when it says something */
+    private function statusParts(): array
+    {
+        return \array_values(\array_filter([$this->statusInfo(), $this->zoomLabel(), $this->keysHint()], static fn (string $part): bool => '' !== $part));
     }
 
     /** Ctrl+wheel: zoom one step anchored on the pane cell under the pointer. */

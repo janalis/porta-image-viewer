@@ -187,6 +187,51 @@ final class ImageViewerWidgetTest extends TestCase
         $this->assertStringContainsString('38;2;40;200;40', $refined, 'the refined raster shows — a stale memo would keep the probe');
     }
 
+    public function testTheZoomHintsAreStatusCellsThatZoomAsTheirKeysDo(): void
+    {
+        $widget = new ImageViewerWidget(new FakeRasterizer(), new Translator('en'));
+        $this->assertSame([], $widget->statusClicks(), 'nothing shown, nothing to zoom');
+        $widget->show('/p/a.png', $this->gradient());
+        $widget->render(new RenderContext(8, 2));
+
+        $cells = $this->cellTexts($widget);
+        $this->assertSame(['zoom_in' => '+', 'zoom_out' => '-', 'zoom_fit' => '0 fit'], $cells);
+
+        $this->assertTrue($widget->runStatusAction('zoom_in'));
+        $this->assertSame('25%', $widget->zoomLabel());
+        $this->assertTrue($widget->runStatusAction('zoom_in'));
+        $this->assertTrue($widget->runStatusAction('zoom_out'));
+        $this->assertSame('25%', $widget->zoomLabel());
+        $this->assertTrue($widget->runStatusAction('zoom_fit'));
+        $this->assertSame('Fit (13%)', $widget->zoomLabel());
+        $this->assertFalse($widget->runStatusAction('goto_line'), 'not a zoom cell: the status bar runs it elsewhere');
+    }
+
+    public function testTheZoomCellsAreFoundByTheirKeysInAWideScript(): void
+    {
+        // ズーム is six columns in three characters: a span counted in bytes or
+        // characters would land the fit cell on the wrong words.
+        $translator = new Translator('ja');
+        $translator->addCatalogDirectory(\dirname(__DIR__).'/translations');
+        $widget = new ImageViewerWidget(new FakeRasterizer(), $translator);
+        $widget->show('/p/a.png', $this->gradient());
+        $widget->render(new RenderContext(8, 2));
+
+        $this->assertSame(['zoom_in' => '+', 'zoom_out' => '-', 'zoom_fit' => '0 フィット'], $this->cellTexts($widget));
+    }
+
+    /** @return array<string, string> each status cell's action => the text it covers */
+    private function cellTexts(ImageViewerWidget $widget): array
+    {
+        $text = $widget->statusRight();
+        $cells = [];
+        foreach ($widget->statusClicks() as $span) {
+            $cells[$span->action] = AnsiUtils::sliceToWidth($text, $span->from, $span->to - $span->from);
+        }
+
+        return $cells;
+    }
+
     public function testShowsAnImageAndZoomKeysDriveTheLabel(): void
     {
         $widget = new ImageViewerWidget(new FakeRasterizer(), new Translator('en'));

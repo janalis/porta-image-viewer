@@ -19,6 +19,7 @@ use Porta\Tests\Support\PreservesPath;
 use Porta\Tests\Support\Previews;
 use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\RunsIde;
+use Porta\Tests\Support\ScreenReads;
 use Porta\Tests\Support\Services;
 use Porta\Tests\Support\TempProject;
 use Porta\Tests\Support\UsesBundledPlugins;
@@ -41,6 +42,7 @@ final class IdeImageViewerTest extends TestCase
     use ClearsPortaLsp;
     use PreservesPath;
     use RunsIde;
+    use ScreenReads;
     use UsesBundledPlugins;
 
     /**
@@ -146,6 +148,45 @@ final class IdeImageViewerTest extends TestCase
         );
 
         $this->addToAssertionCount(1);
+    }
+
+    /** The zoom hints on the status bar are buttons: `+` zooms in, the fit hint fits. */
+    public function testClickingTheStatusBarsZoomHintsZooms(): void
+    {
+        \putenv('PATH=/nonexistent');
+        $project = self::project(['img.png' => $this->twoColorPng(64, 64)]);
+
+        $this->runIde(
+            $project,
+            $project->path('img.png'),
+            [
+                200 => function (Tui $tui, VirtualTerminal $terminal): void {
+                    $this->frame($tui);
+                    $grid = $this->screenGrid($tui, $terminal);
+                    $row = $this->rowOf($grid, '+/- zoom');
+                    $this->assertNotNull($row, 'the zoom hints are on the status bar');
+                    $plus = (int) \mb_strpos($grid[$row], needle: '+/- zoom');
+                    $fit = (int) \mb_strpos($grid[$row], needle: '0 fit');
+                    $viewer = $tui->getById('image-viewer');
+                    $this->assertInstanceOf(EditorPaneWidget::class, $viewer);
+                    $label = $viewer->zoomLabel();
+                    $this->assertStringStartsWith('Fit', $label);
+                    $this->clickAt($tui, $plus, $row);
+                    $this->assertSame('100%', $viewer->zoomLabel(), 'the + zoomed in a ladder step');
+
+                    $this->clickAt($tui, $fit + 2, $row); // on the word, not its key
+                    $this->assertSame($label, $viewer->zoomLabel(), 'the fit hint fitted again');
+                    $this->assertSame('image-viewer', $tui->getFocus()?->getId(), 'the viewer keeps the keys');
+                },
+            ],
+        );
+    }
+
+    /** A left click at the 0-based screen cell: press, then release. */
+    private function clickAt(Tui $tui, int $col, int $row): void
+    {
+        $tui->handleInput(\sprintf("\x1b[<0;%d;%dM", $col + 1, $row + 1));
+        $tui->handleInput(\sprintf("\x1b[<0;%d;%dm", $col + 1, $row + 1));
     }
 
     public function testATrackpadCtrlScrollBurstGlidesWhereASingleNotchSteps(): void
