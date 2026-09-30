@@ -77,13 +77,25 @@ final class PixelPlacement
     }
 
     /**
-     * Screen pixels one pane column spans: a cell's width when the terminal
+     * Device pixels one pane column spans: a cell's width when the terminal
      * draws the picture, 1 while half-blocks do — what a sharp re-render has to
-     * cover per column, and what a zoom percentage is counted in.
+     * cover per column. A zoom's percentage counts in
+     * {@see logicalPixelsPerColumn()}.
      */
     public function pixelsPerColumn(): int
     {
         return $this->graphics->available() ? $this->graphics->cellPixels()[0] : 1;
+    }
+
+    /**
+     * LOGICAL pixels one column spans: what a zoom's percentage counts in, so
+     * 100% shows a picture at the size the display's other apps do. Device
+     * pixels over the display's ratio; 1 under half-blocks, where a column is
+     * the pixel.
+     */
+    public function logicalPixelsPerColumn(): float
+    {
+        return $this->graphics->available() ? $this->graphics->cellPixels()[0] / $this->graphics->pixelRatio() : 1.0;
     }
 
     /**

@@ -22,11 +22,11 @@ final class ZoomPanModel
     private int $panY = 0;
 
     /**
-     * Screen pixels one column spans: 1 under half-blocks, where a column IS
-     * the pixel the ladder was drawn for, and a whole cell's width when the
-     * terminal draws pixels — where the ladder, 100% and the label all mean
-     * real screen pixels, or 12.5% would already be twice life-size and the
-     * zoom could not go below fit.
+     * Logical pixels one column spans: 1 under half-blocks, where a column IS
+     * the pixel the ladder was drawn for, and a cell's width over the display's
+     * pixel ratio when the terminal draws pixels. There the ladder, 100% and
+     * the label mean the display's own pixels, as in a browser, or 12.5% would
+     * already be twice life-size and the zoom could not go below fit.
      */
     private float $unit = 1.0;
 
@@ -49,7 +49,7 @@ final class ZoomPanModel
     }
 
     /** The factor actually applied for a pane of $cols × $pxRows (fit resolves here). */
-    /** Say what one column is worth in screen pixels ({@see $unit}). */
+    /** Say what one column is worth in logical pixels ({@see $unit}). */
     public function setPixelsPerColumn(float $unit): void
     {
         $this->unit = \max(1.0, $unit);

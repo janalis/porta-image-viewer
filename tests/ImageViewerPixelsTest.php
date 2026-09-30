@@ -84,6 +84,44 @@ final class ImageViewerPixelsTest extends TestCase
         $this->assertSame([null, 4.0], $this->rasterizer->scales, 'half a column is four screen pixels');
     }
 
+    /**
+     * On a Retina screen the terminal counts device pixels, two to each of the
+     * display's own: 100% is one image pixel per LOGICAL pixel, the size a
+     * browser shows it at. The picture is still drawn in device pixels.
+     */
+    public function testAHundredPercentCountsTheDisplaysLogicalPixels(): void
+    {
+        [$graphics] = PixelGraphics::answered(cellWidth: 16, cellHeight: 34);
+        $widget = $this->widget($graphics);
+        $tabs = new RecordingViewerTabHandler();
+        $widget->setHandler($tabs);
+        $widget->show('/p/a.png', self::bitmap(64, 8));
+        $widget->render(new RenderContext(8, 2));
+        $this->assertSame('Fit (200%)', $widget->zoomLabel(), 'counted in device pixels: 8 columns of 16 for 64 pixels');
+
+        $graphics->setPixelRatio(2.0);
+
+        $this->assertContains('view', $tabs->events, 'the status bar is told to read the label again');
+        $this->assertSame('Fit (100%)', $widget->zoomLabel(), 'in logical ones: 8 columns of 8');
+        $widget->handleInput('1'); // actual size
+        $this->assertSame('100%', $widget->zoomLabel());
+    }
+
+    public function testARetinaVectorIsStillRasteredForItsDevicePixels(): void
+    {
+        [$graphics] = PixelGraphics::answered(cellWidth: 16, cellHeight: 34);
+        $graphics->setPixelRatio(2.0);
+        $this->rasterizer->nextPng = PngFixture::bytes(100, 50);
+        $widget = $this->widget($graphics);
+        $widget->show('/p/a.svg', '<svg viewBox="0 0 100 50"/>');
+
+        $widget->render(new RenderContext(50, 13)); // fit: half a column per pixel
+        $this->scheduler->fire();
+
+        $this->assertSame('Fit (400%)', $widget->zoomLabel(), 'half a column is 8 device pixels, 4 logical ones');
+        $this->assertSame([null, 8.0], $this->rasterizer->scales, 'rastered at 8 device pixels to the pixel, sharp');
+    }
+
     public function testLettingGoOfThePictureFreesItInTheTerminal(): void
     {
         [$graphics, $terminal] = PixelGraphics::answered();

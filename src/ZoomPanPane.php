@@ -62,7 +62,7 @@ trait ZoomPanPane
     /** The terminal-drawn picture, when a graphics channel was handed in; null paints half-blocks. */
     private readonly ?PixelPlacement $pixels;
 
-    /** Screen pixels one pane column spans right now ({@see ZoomPanModel::setPixelsPerColumn()}). */
+    /** Device pixels one pane column spans right now: what a sharp re-render has to cover. */
     private function pixelsPerColumn(): int
     {
         return $this->pixels?->pixelsPerColumn() ?? 1;
@@ -70,7 +70,7 @@ trait ZoomPanPane
 
     /**
      * The head of every frame: remember the pane size the keys act on, count
-     * the zoom in the pixels the pane is drawn in, and ask for whatever sharper
+     * the zoom in the display's logical pixels, and ask for whatever sharper
      * render the fit now wants (the fit scale depends on the pane size, which
      * is only known here; the wanted-resolution guard makes that a float
      * compare on every other frame).
@@ -90,7 +90,7 @@ trait ZoomPanPane
      */
     private function syncPixelsPerColumn(): void
     {
-        $this->view?->setPixelsPerColumn($this->pixelsPerColumn());
+        $this->view?->setPixelsPerColumn($this->pixels?->logicalPixelsPerColumn() ?? 1.0);
     }
 
     /** The status bar's zoom text ('Fit (37%)' / '200%'), '' when nothing is shown. */
