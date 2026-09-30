@@ -525,4 +525,62 @@ final class ImageViewerWidgetTest extends TestCase
         \sort($ours);
         $this->assertSame($ours, $declared, 'every declared action is bound, and every key core does not declare is declared here');
     }
+
+    public function testAClickOnAnSvgRevealsTheTagThatDrewTheShapeUnderIt(): void
+    {
+        // The probe is the document's own size, 100 × 50; at 50 × 13 the fit
+        // is 0.5 — one column two document pixels, one row four.
+        $this->rasterizer->nextPng = PngFixture::bytes(100, 50);
+        $svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 50\">\n  <rect x=\"0\" y=\"0\" width=\"50\" height=\"50\"/>\n  <circle cx=\"80\" cy=\"25\" r=\"10\"/>\n</svg>";
+        $widget = $this->vectorWidget();
+        $handler = new RecordingViewerTabHandler();
+        $widget->setHandler($handler);
+        $widget->show('/p/a.svg', $svg);
+        $widget->render(new RenderContext(50, 13));
+        $handler->events = [];
+
+        $this->assertTrue($widget->press(6, 40), 'a press arms the drag-pan and the click');
+        $widget->selectAt(6, 40); // document (81, 25): the circle
+        $widget->selectAt(6, 10); // document (21, 25): the rect
+        $widget->selectAt(6, 30); // document (61, 25): nothing drawn there
+
+        $this->assertSame(['reveal:2:2', 'reveal:1:2'], $handler->events, 'each shape\'s line, and the column of its tag');
+    }
+
+    public function testABitmapHasNoSourceAndAnEmptyPaneNothingToPress(): void
+    {
+        $widget = new ImageViewerWidget(new FakeRasterizer(), new Translator('en'));
+        $handler = new RecordingViewerTabHandler();
+        $widget->setHandler($handler);
+        $this->assertFalse($widget->press(1, 1), 'nothing shown, nothing to drag');
+
+        $widget->show('/p/a.png', $this->gradient());
+        $widget->render(new RenderContext(80, 24));
+        $handler->events = [];
+        $widget->selectAt(3, 3);
+
+        $this->assertSame([], $handler->events);
+    }
+
+    public function testAClickLandsOnTheMiddleOfItsCellNotItsCorner(): void
+    {
+        // At the 0.5 fit a row is four document pixels and a column two: row 1
+        // is y 4..8, its middle 6 — past a 4-pixel strip's reach, where the
+        // cell's top corner would still be on it.
+        $this->rasterizer->nextPng = PngFixture::bytes(100, 50);
+        $widget = $this->vectorWidget();
+        $handler = new RecordingViewerTabHandler();
+        $widget->setHandler($handler);
+        $widget->show('/p/a.svg', '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50"><rect x="0" y="0" width="100" height="4"/><rect x="0" y="0" width="3" height="50"/></svg>');
+        $widget->render(new RenderContext(50, 13));
+        $handler->events = [];
+
+        $widget->selectAt(1, 20); // (41, 6): below the strip
+        $widget->selectAt(20, 2); // past the bottom: nothing drawn
+        $widget->selectAt(6, 2); // (5, 26): beside the bar, past its reach
+
+        $this->assertSame([], $handler->events);
+        $widget->selectAt(0, 20);
+        $this->assertSame(['reveal:0:61'], $handler->events, 'row 0 is on the strip');
+    }
 }

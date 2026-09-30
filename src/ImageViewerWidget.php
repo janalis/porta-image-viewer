@@ -260,6 +260,42 @@ final class ImageViewerWidget extends NavigablePaneWidget
         return $image;
     }
 
+    /**
+     * A press on the picture arms the drag-pan, and a release that never moved
+     * is a click ({@see selectAt()}) — the graph viewer's gesture pair.
+     */
+    #[\Override]
+    public function press(int $relRow, int $relCol): bool
+    {
+        return null !== $this->view;
+    }
+
+    /**
+     * Click-to-source for an SVG: the cell back to a point in the document's
+     * pixels, through the zoom and the pan, then the shape drawn there to the
+     * tag that wrote it. A bitmap has no source to go to.
+     */
+    #[\Override]
+    public function selectAt(int $relRow, int $relCol): void
+    {
+        if (null === $this->svg || null === $this->view) {
+            return;
+        }
+        $rect = $this->view->visibleRect($this->lastCols, 2 * $this->lastRows);
+        $scale = $this->view->effectiveScale($this->lastCols, 2 * $this->lastRows);
+        [$width, $height] = $this->view->dimensions();
+        $offset = SvgHitTest::elementAt(
+            $this->svg,
+            $width,
+            $height,
+            $rect['srcX'] + (($relCol + 0.5 - $rect['padCols']) / $scale),
+            $rect['srcY'] + (((2 * $relRow) + 1 - $rect['padHalfRows']) / $scale),
+        );
+        if (null !== $offset) {
+            $this->handler?->revealSource(...Text::lineAndColumn($this->svg, $offset));
+        }
+    }
+
     /** The status bar's size text ('64 × 64' in the document's own pixels), '' when nothing is shown. */
     // @mago-expect lint:no-missing-format-argument -- mago 1.45's new rule cannot count through a spread: it flags every spread call and reports the placeholder count as the value count ("2 placeholders, 2 values given"). dimensions() returns array{0: int, 1: int}.
     public function statusInfo(): string

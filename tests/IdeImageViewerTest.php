@@ -25,6 +25,8 @@ use Porta\Tests\Support\UsesBundledPlugins;
 use Porta\Widget\CodeEditorWidget;
 use Porta\Widget\EditorPaneWidget;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
+use Symfony\Component\Tui\Render\Renderer;
+use Symfony\Component\Tui\Render\WidgetRect;
 use Symfony\Component\Tui\Terminal\VirtualTerminal;
 use Symfony\Component\Tui\Tui;
 use Symfony\Component\Tui\Widget\WidgetContext;
@@ -627,6 +629,43 @@ final class IdeImageViewerTest extends TestCase
                     Services::resolve($ide, BufferService::class)->openFile((string) \realpath($project->path('huge-binary.svg')));
                     $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'Not a UTF-8 text file'), what: 'the viewer\'s refusal');
                     $this->assertCount(1, $buffers->all());
+                },
+            ],
+        );
+    }
+
+    public function testAClickOnThePictureSendsTheCaretToTheTagThatDrewIt(): void
+    {
+        $svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 50\">\n  <rect x=\"0\" y=\"0\" width=\"50\" height=\"50\" fill=\"#284\"/>\n  <circle cx=\"75\" cy=\"25\" r=\"20\"/>\n</svg>\n";
+        $project = self::project([
+            '.porta.json' => (string) \json_encode(['plugins' => ['image-viewer' => ['svgConverter' => self::fakeConverter()]]]),
+            'logo.svg' => $svg,
+        ]);
+        $this->phpOnlyPath($project);
+
+        $this->runIde(
+            $project,
+            $project->path('logo.svg'),
+            [
+                200 => function (Tui $tui, $terminal, Ide $ide): void {
+                    $pane = $tui->getById('image-viewer');
+                    $this->await(static fn (): bool => '100 × 50' === $pane->statusInfo(), what: 'the picture beside the text');
+                    $this->frame($tui);
+                    $rect = Services::resolve($ide, Renderer::class)->getWidgetRect($pane);
+                    $this->assertInstanceOf(WidgetRect::class, $rect);
+                    $editor = Services::resolve($ide, CodeEditorWidget::class);
+                    $click = static function (float $across) use ($tui, $rect): void {
+                        $col = $rect->col + (int) ($rect->columns * $across) + 1;
+                        $row = $rect->row + \intdiv($rect->rows, num2: 2) + 1;
+                        $tui->handleInput(\sprintf("\x1b[<0;%d;%dM", $col, $row));
+                        $tui->handleInput(\sprintf("\x1b[<0;%d;%dm", $col, $row));
+                    };
+
+                    $click(0.8);
+                    $this->assertSame([2, 2], [$editor->getDocument()->cursorLine, $editor->getDocument()->cursorCol], 'the circle\'s tag');
+                    $this->assertSame($editor, $tui->getFocus(), 'beside the picture, the text takes the keys');
+                    $click(0.2);
+                    $this->assertSame(1, $editor->getDocument()->cursorLine, 'the rect\'s tag');
                 },
             ],
         );
