@@ -59,7 +59,7 @@ return new class('image-viewer') extends AbstractPlugin {
             max: 268_435_456,
             step: 1_048_576,
         );
-        $api->registerSetting('svg', 'Render SVG as an image', 'bool', true);
+        $api->registerSetting('svg', 'Preview SVG beside its markup', 'bool', true);
         // A CORE setting until this plugin owned it (the git-keys precedent).
         // The rasterizer resolves it per conversion, so an edit applies live.
         $api->registerSetting('svgConverter', 'SVG converter path', hint: 'empty = discover on PATH');
