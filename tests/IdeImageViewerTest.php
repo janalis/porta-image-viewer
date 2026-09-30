@@ -6,6 +6,7 @@ namespace Porta\ImageViewer\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Porta\Config\CommandRegistry;
+use Porta\Editor\Buffer;
 use Porta\Editor\BufferManager;
 use Porta\Editor\BufferNavigator;
 use Porta\Editor\BufferService;
@@ -15,6 +16,7 @@ use Porta\Ide;
 use Porta\Tests\Support\ClearsPortaLsp;
 use Porta\Tests\Support\PngFixture;
 use Porta\Tests\Support\PreservesPath;
+use Porta\Tests\Support\Previews;
 use Porta\Tests\Support\Probe;
 use Porta\Tests\Support\RunsIde;
 use Porta\Tests\Support\Services;
@@ -397,7 +399,8 @@ final class IdeImageViewerTest extends TestCase
             $project,
             $project->path('logo.svg'),
             [
-                200 => function ($tui, $terminal, $ide) use ($project): void {
+                200 => function ($tui, $terminal, Ide $ide) use ($project): void {
+                    Previews::alone($ide); // the picture's status segment, with the keys
                     $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '100 × 50'), what: 'the adopted converter rasterizing the SVG');
                     $this->await(static function () use ($project): bool {
                         $file = \json_decode((string) \file_get_contents($project->path('.porta.json')), associative: true);
@@ -410,7 +413,7 @@ final class IdeImageViewerTest extends TestCase
         $this->addToAssertionCount(1);
     }
 
-    public function testAnSvgOpensAsAPictureRasterizedByTheConverter(): void
+    public function testAnSvgOpensAsTextBesideAPictureRasterizedByTheConverter(): void
     {
         $project = self::project([
             '.porta.json' => (string) \json_encode(['plugins' => ['image-viewer' => ['svgConverter' => self::fakeConverter()]]]),
@@ -425,8 +428,16 @@ final class IdeImageViewerTest extends TestCase
             $project->path('logo.svg'),
             [
                 200 => function (Tui $tui, $terminal, Ide $ide) use ($project): void {
-                    $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '100 × 50'), what: 'the rasterized SVG');
-                    $this->assertSame('image-viewer', $tui->getFocus()?->getId(), 'an SVG takes the image pane');
+                    // The markup is the file, so the editor has it, and the
+                    // picture it makes sits beside it.
+                    $this->frame($tui);
+                    $this->assertSame('editor', $tui->getFocus()?->getId(), 'an SVG opens as its text');
+                    $this->await(static fn (): bool => \str_contains($terminal->getOutput(), '38;2;40;130;70'), what: 'the rasterized SVG beside the text');
+                    $this->assertStringContainsString('viewBox', AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'the markup on screen too');
+
+                    Previews::alone($ide);
+                    $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '100 × 50'), what: 'the picture alone, speaking for itself');
+                    $this->assertSame('image-viewer', $tui->getFocus()?->getId(), 'the picture alone has the keys');
 
                     $output = $terminal->getOutput();
                     $this->assertStringContainsString('▀', $output, 'half-block cells rendered');
@@ -436,11 +447,12 @@ final class IdeImageViewerTest extends TestCase
                     // asked the converter rather than parsing the XML.
                     $this->assertStringContainsString('100 × 50', AnsiUtils::stripAnsiCodes($output));
 
-                    // Opening another one with editor focus keeps the pane.
+                    // Another one opens beside its text again: the arrangement
+                    // is each tab's own.
                     $service = Services::resolve($ide, BufferService::class);
                     $service->openFile((string) \realpath($project->path('other.svg')), OpenFocus::Editor);
                     $this->frame($tui);
-                    $this->assertSame('image-viewer', $tui->getFocus()?->getId());
+                    $this->assertSame('editor', $tui->getFocus()?->getId());
 
                     // Bytes that are not UTF-8 are refused the same way any
                     // text-backed document is, rather than reaching a converter.
@@ -451,7 +463,7 @@ final class IdeImageViewerTest extends TestCase
         );
     }
 
-    public function testReopeningAChangedSvgRerastersItImmediately(): void
+    public function testEditingTheMarkupRerastersThePictureOnceTypingPauses(): void
     {
         $project = self::project([
             '.porta.json' => (string) \json_encode(['plugins' => ['image-viewer' => ['svgConverter' => self::fakeConverter()]]]),
@@ -464,15 +476,18 @@ final class IdeImageViewerTest extends TestCase
             $project->path('logo.svg'),
             [
                 200 => function ($tui, $terminal, Ide $ide) use ($project): void {
-                    $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '100 × 50'), what: 'the first raster');
+                    $pane = $tui->getById('image-viewer');
+                    $this->await(static fn (): bool => '100 × 50' === $pane->statusInfo(), what: 'the first raster');
 
-                    // Change the document on disk and re-open it explicitly: the
-                    // source refreshes without waiting out the 1s reconciler, and
-                    // the pane re-rasterizes what is now there.
-                    \file_put_contents($project->path('logo.svg'), data: '<svg data-w="60" viewBox="0 0 60 30"/>');
-                    Services::resolve($ide, BufferService::class)->openFile((string) \realpath($project->path('logo.svg')));
-                    $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '60 × 30'), what: 'the re-rasterized document');
-                    $this->assertSame('60 × 30', $tui->getById('image-viewer')->statusInfo(), 'a resized document is fitted fresh');
+                    // The EDITOR's text changes, not the file: nothing is saved,
+                    // and the picture follows what the editor holds.
+                    $active = Services::resolve($ide, BufferManager::class)->active();
+                    $this->assertInstanceOf(Buffer::class, $active);
+                    $active->document->replaceAll('<svg data-w="60" viewBox="0 0 60 30"/>');
+                    $tui->requestRender();
+                    $this->await(static fn (): bool => '60 × 30' === $pane->statusInfo(), what: 'the re-rasterized document');
+                    $this->assertTrue($active->isDirty(), 'the file was never written — the preview follows the text');
+                    $this->assertStringContainsString('100', (string) \file_get_contents($project->path('logo.svg')));
                 },
             ],
         );
@@ -495,6 +510,7 @@ final class IdeImageViewerTest extends TestCase
             $project->path('logo.svg'),
             [
                 200 => function ($tui, $terminal, Ide $ide) use ($project): void {
+                    Previews::alone($ide);
                     $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '100 × 50'), what: 'the first raster');
 
                     \file_put_contents($project->path('logo.svg'), data: '<svg data-w="70" viewBox="0 0 70 35"/>');
@@ -505,15 +521,6 @@ final class IdeImageViewerTest extends TestCase
                     // document probes as 70 × 35.
                     $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '70 × 35'), what: 'the reloaded document');
                     $this->assertSame('70 × 35', $tui->getById('image-viewer')->statusInfo(), 'the poller re-read the source and the pane re-rasterized it');
-
-                    // The same rule on the EXPLICIT re-open path, which reads the
-                    // payload through the pane's loader too: a refusal there
-                    // keeps the last good document rather than blanking the pane.
-                    \file_put_contents($project->path('logo.svg'), data: "\xff\xfe\x00<svg");
-                    \touch($project->path('logo.svg'), mtime: \time() + 3);
-                    Services::resolve($ide, BufferService::class)->openFile((string) \realpath($project->path('logo.svg')));
-                    $this->pump(0.3);
-                    $this->assertSame('70 × 35', $tui->getById('image-viewer')->statusInfo(), 'a refused re-open keeps the document');
 
                     // Garbage keeps the picture, the same contract the bitmap
                     // path keeps: an unreadable new payload is not a reason to
@@ -528,7 +535,7 @@ final class IdeImageViewerTest extends TestCase
         );
     }
 
-    public function testOpenAsTextGivesTheXmlBack(): void
+    public function testTheEditorToggleGivesTheXmlBack(): void
     {
         $project = self::project([
             '.porta.json' => (string) \json_encode(['plugins' => ['image-viewer' => ['svgConverter' => self::fakeConverter()]]]),
@@ -541,10 +548,12 @@ final class IdeImageViewerTest extends TestCase
             $project->path('logo.svg'),
             [
                 200 => function ($tui, $terminal, Ide $ide): void {
+                    Previews::alone($ide);
                     $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '100 × 50'), what: 'the rasterized SVG');
                     $this->assertSame('image-viewer', $tui->getFocus()?->getId());
 
-                    Services::resolve($ide, CommandRegistry::class)->run('open_as_text');
+                    $terminal->clearOutput();
+                    Services::resolve($ide, CommandRegistry::class)->run('preview_editor');
                     $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '<svg'), what: 'the XML behind the picture');
                     $this->assertSame('editor', $tui->getFocus()?->getId(), 'the editor took the pane back');
                     $this->assertStringContainsString('viewBox', Services::resolve($ide, CodeEditorWidget::class)->getDocument()->getText(), 'and it is editable');
@@ -589,6 +598,35 @@ final class IdeImageViewerTest extends TestCase
                     $this->frame($tui);
                     $this->assertSame('editor', $tui->getFocus()?->getId(), 'someone who edits SVGs turns the claim off');
                     $this->assertStringContainsString('<svg', AnsiUtils::stripAnsiCodes($terminal->getOutput()));
+                },
+            ],
+        );
+    }
+
+    public function testAnSvgTooLargeToEditStillOpensAsAPicture(): void
+    {
+        // Past the editor's 2 MB the preview declines — there would be no text
+        // beside it — and the viewer claim takes the file as it always did.
+        $padding = '<!-- '.\str_repeat('x', times: 2_200_000).' -->';
+        $project = self::project([
+            '.porta.json' => (string) \json_encode(['plugins' => ['image-viewer' => ['svgConverter' => self::fakeConverter()]]]),
+            'huge.svg' => \str_replace('<rect', $padding.'<rect', self::SMALL_SVG),
+            'huge-binary.svg' => "\xff\xfe\x00<svg".\str_repeat('x', times: 2_200_000),
+        ]);
+        $this->phpOnlyPath($project);
+
+        $this->runIde(
+            $project,
+            $project->path('huge.svg'),
+            [
+                200 => function (Tui $tui, $terminal, Ide $ide) use ($project): void {
+                    $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '100 × 50'), what: 'the picture of a file too large to edit');
+                    $buffers = Services::resolve($ide, BufferManager::class);
+                    $this->assertTrue($buffers->active()?->isViewer(), 'a viewer tab, not a text one');
+
+                    Services::resolve($ide, BufferService::class)->openFile((string) \realpath($project->path('huge-binary.svg')));
+                    $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'Not a UTF-8 text file'), what: 'the viewer\'s refusal');
+                    $this->assertCount(1, $buffers->all());
                 },
             ],
         );

@@ -31,8 +31,9 @@ use Porta\Widget\EditorPaneWidget;
  *
  * SVG is claimed too, but only when the IDE can actually render one: it is
  * rasterized by an external converter ({@see SvgConverter}), so with none
- * installed — or with the `svg` setting off, for someone who would rather EDIT
- * their SVGs — the file stays on the text path where it has always been. The
+ * installed — or with the `svg` setting off — the file stays on the text path
+ * where it has always been. Claimed as a live PREVIEW: the markup opens in the
+ * editor with the picture beside it, redrawn as it is edited. The
  * converter path is this plugin's own `svgConverter` setting (a core one
  * until the plugin owned it; pre-move values adopt once).
  */
@@ -130,6 +131,11 @@ return new class('image-viewer') extends AbstractPlugin {
             // refusal instead of the viewer's — the routing IS the limit.
             return (int) filesize($path) <= max(1, (int) $api->setting('maxBytes'));
         });
+        // An SVG is TEXT as much as it is a picture, so it opens in the editor
+        // with the rendering beside it, re-rasterized as the markup changes.
+        // Asked before the viewer claim above, which still takes an SVG too
+        // large for the editor to hold.
+        $api->registerPreview('image', fn (string $path): bool => $this->claimsSvg($api, $path));
     }
 
     /** An SVG is the viewer's only if the user wants it AND something can rasterize it. */
