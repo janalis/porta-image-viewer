@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Porta\ImageViewer;
 
-use Porta\Support\AnsiSlice;
 use Porta\Support\AnsiText;
 use Porta\Support\Text;
 use Porta\Ui\Glyphs;
@@ -192,7 +191,7 @@ trait ZoomPanPane
     /** The one-row banner that outranks the focus frame's top border: an error must not hide behind focus chrome. */
     private function errorBanner(string $error, int $cols): string
     {
-        return AnsiSlice::truncate($this->styles->of(Role::DiagError)->apply(' ✗ '.Text::firstLine($error).' '), $cols, pad: true);
+        return AnsiUtils::truncateToWidth($this->styles->of(Role::DiagError)->apply(' ✗ '.Text::firstLine($error).' '), $cols, pad: true);
     }
 
     /**
@@ -208,7 +207,7 @@ trait ZoomPanPane
         if ('' === $message) {
             return $blank;
         }
-        $text = AnsiSlice::truncate($message, $cols);
+        $text = AnsiUtils::truncateToWidth($message, $cols);
         $pad = \max(0, \intdiv($cols - AnsiUtils::visibleWidth($text), num2: 2));
         $blank[\intdiv($rows, num2: 2)] = AnsiText::blank($pad).$this->styles->of($role)->apply($text).AnsiText::blank($cols - $pad - AnsiUtils::visibleWidth($text));
 
