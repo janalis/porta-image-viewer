@@ -6,12 +6,12 @@ namespace Porta\ImageViewer\Tests;
 
 use PHPUnit\Framework\TestCase;
 use Porta\ImageViewer\ImageData;
+use Porta\ImageViewer\PixelOutline;
 use Porta\ImageViewer\PixelPlacement;
 use Porta\ImageViewer\ZoomPanModel;
 use Porta\Tests\Support\PixelGraphics;
 use Porta\Ui\Graphics\KittyPlaceholders;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
-use Symfony\Component\Tui\Terminal\VirtualTerminal;
 
 /** The pixel path: what a pane paints, and what it sends, for a view. */
 final class PixelPlacementTest extends TestCase
@@ -24,31 +24,6 @@ final class PixelPlacementTest extends TestCase
         \imagefilledrectangle($gd, x1: \intdiv($width, num2: 2), y1: 0, x2: $width - 1, y2: $height - 1, color: (int) \imagecolorallocate($gd, red: 0, green: 0, blue: 255));
 
         return new ImageData($gd, $width, $height, 0);
-    }
-
-    /** @return list<\GdImage> every image the terminal was sent, decoded */
-    private static function sent(VirtualTerminal $terminal): array
-    {
-        \preg_match_all('/\x1b_G([^;\x1b]*);([^\x1b]*)\x1b\\\\/', $terminal->getOutput(), $commands, \PREG_SET_ORDER);
-        $images = [];
-        $payload = null;
-        foreach ($commands as [, $keys, $data]) {
-            if (\str_starts_with($keys, 'a=t,')) {
-                $payload = '';
-            }
-            if (null === $payload || !\str_contains($keys, 'm=')) {
-                continue;
-            }
-            $payload .= $data;
-            if (\str_ends_with($keys, 'm=0')) {
-                $gd = \imagecreatefromstring((string) \base64_decode($payload, strict: true));
-                self::assertInstanceOf(\GdImage::class, $gd);
-                $images[] = $gd;
-                $payload = null;
-            }
-        }
-
-        return $images;
     }
 
     public function testWithoutAnAnswerThePaneKeepsItsHalfBlocks(): void
@@ -94,7 +69,7 @@ final class PixelPlacementTest extends TestCase
         $this->assertSame(KittyPlaceholders::row(1000, 0, 0, 20), $lines[2]);
         $this->assertSame(KittyPlaceholders::row(1000, 5, 0, 20), $lines[7]);
 
-        [$image] = self::sent($terminal);
+        [$image] = PixelGraphics::sentImages($terminal);
         $this->assertSame([160, 96], [\imagesx($image), \imagesy($image)], 'the placed cells at 8×16 pixels each');
         $this->assertStringContainsString("\x1b_Ga=p,U=1,i=1000,p=1,c=20,r=6,q=2\x1b\\", $terminal->getOutput());
     }
@@ -132,7 +107,7 @@ final class PixelPlacementTest extends TestCase
         $this->assertSame([1000], PixelGraphics::imageIdsIn($before));
         $this->assertSame([1001], PixelGraphics::imageIdsIn($after));
         $this->assertSame([1000], PixelGraphics::imageIdsIn($third), 'the two ids take turns');
-        $this->assertCount(3, self::sent($terminal));
+        $this->assertCount(3, PixelGraphics::sentImages($terminal));
         $this->assertStringNotContainsString('a=d', $terminal->getOutput(), 'the previous view stays up under its own id');
     }
 
@@ -146,7 +121,7 @@ final class PixelPlacementTest extends TestCase
 
         $pixels->render(self::halves(40, 20), 1.0, $view, 20, 10);
 
-        $this->assertCount(2, self::sent($terminal));
+        $this->assertCount(2, PixelGraphics::sentImages($terminal));
     }
 
     public function testMagnifyingKeepsThePixelsHard(): void
@@ -158,12 +133,58 @@ final class PixelPlacementTest extends TestCase
         // the two colours arrive — no purple where they meet.
         $pixels->render(self::halves(2, 1), 1.0, new ZoomPanModel(2, 1), 20, 10);
 
-        [$image] = self::sent($terminal);
+        [$image] = PixelGraphics::sentImages($terminal);
         $colours = [];
         for ($x = 0; $x < \imagesx($image); ++$x) {
-            $colours[\imagecolorat($image, $x, y: 0) & 0xFF_FF_FF] = true;
+            $colours[\imagecolorat($image, $x, \intdiv(\imagesy($image), num2: 2)) & 0xFF_FF_FF] = true;
         }
         $this->assertSame([0xFF_00_00, 0x00_00_FF], \array_keys($colours));
+    }
+
+    /**
+     * A view reaching past the picture — here the half row above and below a
+     * picture whose letterbox is an odd number of half rows — is left empty,
+     * not filled by stretching the picture over it: stretched, every point sat
+     * off the cell a click on it maps to.
+     */
+    public function testWhatLiesOffThePictureStaysEmptyRatherThanStretched(): void
+    {
+        [$graphics, $terminal] = PixelGraphics::answered();
+        $pixels = new PixelPlacement($graphics, static function (): void {});
+
+        // 2 × 1 at fit in 20 × 10: 10 half rows of picture in 20, a letterbox
+        // of 5 above — so the first placed row starts half a row early.
+        $pixels->render(self::halves(2, 1), 1.0, new ZoomPanModel(2, 1), 20, 10);
+
+        [$image] = PixelGraphics::sentImages($terminal);
+        $alpha = static fn (int $y): int => (\imagecolorat($image, x: 0, y: $y) >> 24) & 0x7F;
+        $this->assertSame(96, \imagesy($image), 'six rows of 16 pixels');
+        $this->assertSame([127, 127, 0, 0, 127, 127], [$alpha(0), $alpha(7), $alpha(8), $alpha(87), $alpha(88), $alpha(95)], 'half a row empty above and below, the picture between');
+        $this->assertSame(0xFF_00_00, \imagecolorat($image, x: 79, y: 48) & 0xFF_FF_FF);
+        $this->assertSame(0x00_00_FF, \imagecolorat($image, x: 80, y: 48) & 0xFF_FF_FF, 'and not a pixel off across');
+    }
+
+    /** An outline is stroked just outside its rectangle, in its colour, and changing it sends the picture again. */
+    public function testAnOutlineIsStrokedAroundItsRectangle(): void
+    {
+        [$graphics, $terminal] = PixelGraphics::answered();
+        $pixels = new PixelPlacement($graphics, static function (): void {});
+        $picture = self::halves(100, 100);
+        $view = new ZoomPanModel(100, 100); // fit in 20 × 10: 20 columns of 8 pixels, 1.6 per document pixel
+
+        $pixels->render($picture, 1.0, $view, 20, 10, new PixelOutline(25.0, 25.0, 75.0, 75.0, [0, 255, 0]));
+
+        [$image] = PixelGraphics::sentImages($terminal);
+        $green = static fn (int $x, int $y): bool => 0x00_FF_00 === (\imagecolorat($image, $x, $y) & 0xFF_FF_FF);
+        $this->assertTrue($green(x: 37, y: 80), 'the left side: 25 × 1.6 = 40, three pixels out');
+        $this->assertTrue($green(x: 123, y: 80), 'the right side: 75 × 1.6 = 120, three pixels out');
+        $this->assertFalse($green(x: 40, y: 80), 'what it frames is left to show');
+        $this->assertFalse($green(x: 80, y: 80));
+
+        $pixels->render($picture, 1.0, $view, 20, 10, new PixelOutline(25.0, 25.0, 75.0, 75.0, [0, 255, 0]));
+        $this->assertCount(1, PixelGraphics::sentImages($terminal), 'the same outline: nothing to send');
+        $pixels->render($picture, 1.0, $view, 20, 10);
+        $this->assertCount(2, PixelGraphics::sentImages($terminal), 'without it: sent again');
     }
 
     public function testShrinkingAveragesAndARerenderIsCutInItsOwnPixels(): void
@@ -175,9 +196,10 @@ final class PixelPlacementTest extends TestCase
         // taken in the raster's pixels, or it would show only its top-left.
         $pixels->render(self::halves(800, 400), 2.0, new ZoomPanModel(400, 200), 20, 10);
 
-        [$image] = self::sent($terminal);
-        $this->assertSame(0xFF_00_00, \imagecolorat($image, x: 5, y: 5) & 0xFF_FF_FF);
-        $this->assertSame(0x00_00_FF, \imagecolorat($image, \imagesx($image) - 5, y: 5) & 0xFF_FF_FF);
+        [$image] = PixelGraphics::sentImages($terminal);
+        $middle = \intdiv(\imagesy($image), num2: 2);
+        $this->assertSame(0xFF_00_00, \imagecolorat($image, x: 5, y: $middle) & 0xFF_FF_FF);
+        $this->assertSame(0x00_00_FF, \imagecolorat($image, \imagesx($image) - 5, $middle) & 0xFF_FF_FF);
     }
 
     public function testAViewIsNeverSentPastTheBudget(): void
@@ -187,7 +209,7 @@ final class PixelPlacementTest extends TestCase
 
         $pixels->render(self::halves(200, 200), 1.0, new ZoomPanModel(200, 200), 40, 20);
 
-        [$image] = self::sent($terminal);
+        [$image] = PixelGraphics::sentImages($terminal);
         $this->assertLessThanOrEqual(PixelPlacement::BUDGET, \imagesx($image) * \imagesy($image));
         $this->assertGreaterThan(PixelPlacement::BUDGET * 0.9, \imagesx($image) * \imagesy($image), 'shrunk to it, not far below it');
     }
@@ -222,7 +244,7 @@ final class PixelPlacementTest extends TestCase
 
         $terminal->clearOutput();
         $pixels->render($image, 1.0, $view, 20, 10);
-        $this->assertCount(1, self::sent($terminal), 'the same view, sent again: the terminal no longer holds it');
+        $this->assertCount(1, PixelGraphics::sentImages($terminal), 'the same view, sent again: the terminal no longer holds it');
     }
 
     public function testForgettingBeforeAnythingWasShownSendsNothing(): void

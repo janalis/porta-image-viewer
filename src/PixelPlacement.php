@@ -44,6 +44,10 @@ final class PixelPlacement
      */
     public const int BUDGET = 1_000_000;
 
+    /** An outline's stroke, and how far outside its rectangle it runs, in the sent picture's pixels. */
+    private const int OUTLINE_WIDTH = 2;
+    private const int OUTLINE_GAP = 3;
+
     /** @var array{0: ?int, 1: ?int} the two ids the views alternate between */
     private array $ids = [null, null];
 
@@ -88,10 +92,11 @@ final class PixelPlacement
      * the caller then paints half-blocks.
      *
      * @param float $ratio $image's pixels per document pixel (1.0, or a re-render's density)
+     * @param ?PixelOutline $outline a rectangle to stroke over the picture (a selection), in document pixels
      *
      * @return list<string>|null
      */
-    public function render(ImageData $image, float $ratio, ZoomPanModel $view, int $cols, int $rows): ?array
+    public function render(ImageData $image, float $ratio, ZoomPanModel $view, int $cols, int $rows, ?PixelOutline $outline = null): ?array
     {
         if (!$this->graphics->available()) {
             return null;
@@ -105,13 +110,15 @@ final class PixelPlacement
 
         // The view, in document pixels, of exactly the cells being covered: a
         // first row that starts on the lower half of a cell reaches half a row
-        // above the visible rect, clamped back onto the picture.
+        // above the visible rect, and a rounded span may reach past the
+        // picture's edge. Neither is clamped here: the cut leaves what lies off
+        // the picture empty, where stretching the picture over it moved every
+        // point off the cell a click on it maps to.
         $scale = $view->effectiveScale($cols, 2 * $rows);
-        [$docWidth, $docHeight] = $view->dimensions();
         $left = (float) $rect['srcX'];
-        $top = \max(0.0, $rect['srcY'] + (((2 * $firstRow) - $rect['padHalfRows']) / $scale));
-        $right = \min((float) $docWidth, $left + ($rect['outCols'] / $scale));
-        $bottom = \min((float) $docHeight, $top + ((2 * $placedRows) / $scale));
+        $top = $rect['srcY'] + (((2 * $firstRow) - $rect['padHalfRows']) / $scale);
+        $right = $left + ($rect['outCols'] / $scale);
+        $bottom = $top + ((2 * $placedRows) / $scale);
 
         // The cells' own pixels, within the budget.
         [$cellWidth, $cellHeight] = $this->graphics->cellPixels();
@@ -121,11 +128,11 @@ final class PixelPlacement
         $width = \max(1, (int) \floor($width * $fit));
         $height = \max(1, (int) \floor($height * $fit));
 
-        $shown = \sprintf('%.4F:%.4F:%.4F:%.4F:%.6F:%d:%d:%d:%d', $left, $top, $right, $bottom, $ratio, $width, $height, $rect['outCols'], $placedRows);
+        $shown = \sprintf('%.4F:%.4F:%.4F:%.4F:%.6F:%d:%d:%d:%d:%s', $left, $top, $right, $bottom, $ratio, $width, $height, $rect['outCols'], $placedRows, $outline?->key() ?? '');
         if ($shown !== $this->shown || $this->source?->get() !== $image) {
             $this->front = 0 === $this->front ? 1 : 0;
             $this->ids[$this->front] ??= $this->graphics->allocateId();
-            $this->graphics->transmit((int) $this->ids[$this->front], $this->cut($image, $ratio, [$left, $top, $right, $bottom], $width, $height));
+            $this->graphics->transmit((int) $this->ids[$this->front], $this->cut($image, $ratio, $view->dimensions(), [$left, $top, $right, $bottom], $width, $height, $outline));
             $this->shown = $shown;
             $this->source = \WeakReference::create($image);
         }
@@ -165,23 +172,61 @@ final class PixelPlacement
      * a whole big image); magnifying stays crisp — nearest neighbour, the
      * half-blocks' contract: at 400% you want the pixels, not a blur.
      *
+     * Whatever of $view lies off the $document's edges stays transparent, and
+     * $outline, if any, is stroked just outside its rectangle — over the
+     * picture, not over what it frames.
+     *
+     * @param array{0: int, 1: int} $document the picture's size in document pixels
      * @param array{float, float, float, float} $view
      */
-    private function cut(ImageData $image, float $ratio, array $view, int $width, int $height): string
+    private function cut(ImageData $image, float $ratio, array $document, array $view, int $width, int $height, ?PixelOutline $outline): string
     {
         [$left, $top, $right, $bottom] = $view;
-        $source = $this->scaled->forScale($image, $width / \max(1e-9, $right - $left), $ratio);
+        $perX = $width / \max(1e-9, $right - $left);
+        $perY = $height / \max(1e-9, $bottom - $top);
+        $source = $this->scaled->forScale($image, $perX, $ratio);
         $canvas = \imagecreatetruecolor($width, $height);
         // Transparency is the terminal's to show over its own background, so
         // the alpha channel has to survive into the file.
         \imagealphablending($canvas, enable: false);
         \imagesavealpha($canvas, enable: true);
-        $sourceX = (int) \round($left * $source->ratio);
-        $sourceY = (int) \round($top * $source->ratio);
-        $sourceWidth = \max(1, (int) \round(($right - $left) * $source->ratio));
-        $sourceHeight = \max(1, (int) \round(($bottom - $top) * $source->ratio));
-        $copy = $width > $sourceWidth ? \imagecopyresized(...) : \imagecopyresampled(...);
-        $copy($canvas, $source->image->gd, dst_x: 0, dst_y: 0, src_x: $sourceX, src_y: $sourceY, dst_width: $width, dst_height: $height, src_width: $sourceWidth, src_height: $sourceHeight);
+        \imagefill($canvas, x: 0, y: 0, color: (int) \imagecolorallocatealpha($canvas, red: 0, green: 0, blue: 0, alpha: 127));
+        // The part of the view the picture covers, and where it lands.
+        $x0 = \max(0.0, $left);
+        $y0 = \max(0.0, $top);
+        $x1 = \min((float) $document[0], $right);
+        $y1 = \min((float) $document[1], $bottom);
+        $destX = (int) \round(($x0 - $left) * $perX);
+        $destY = (int) \round(($y0 - $top) * $perY);
+        $destWidth = \max(1, (int) \round(($x1 - $left) * $perX) - $destX);
+        $destHeight = \max(1, (int) \round(($y1 - $top) * $perY) - $destY);
+        $sourceWidth = \max(1, (int) \round(($x1 - $x0) * $source->ratio));
+        $sourceHeight = \max(1, (int) \round(($y1 - $y0) * $source->ratio));
+        $copy = $destWidth > $sourceWidth ? \imagecopyresized(...) : \imagecopyresampled(...);
+        $copy(
+            $canvas,
+            $source->image->gd,
+            dst_x: $destX,
+            dst_y: $destY,
+            src_x: (int) \round($x0 * $source->ratio),
+            src_y: (int) \round($y0 * $source->ratio),
+            dst_width: $destWidth,
+            dst_height: $destHeight,
+            src_width: $sourceWidth,
+            src_height: $sourceHeight,
+        );
+        if (null !== $outline) {
+            [$red, $green, $blue] = $outline->rgb;
+            \imagesetthickness($canvas, self::OUTLINE_WIDTH);
+            \imagerectangle(
+                $canvas,
+                (int) \round((($outline->x0 - $left) * $perX) - self::OUTLINE_GAP),
+                (int) \round((($outline->y0 - $top) * $perY) - self::OUTLINE_GAP),
+                (int) \round((($outline->x1 - $left) * $perX) + self::OUTLINE_GAP),
+                (int) \round((($outline->y1 - $top) * $perY) + self::OUTLINE_GAP),
+                (int) \imagecolorallocatealpha($canvas, $red, $green, $blue, alpha: 0),
+            );
+        }
         \ob_start();
         // Fastest compression: the bytes cross a local pty, and the encode runs
         // on the event loop.
