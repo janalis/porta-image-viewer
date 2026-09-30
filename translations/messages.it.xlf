@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2">
+  <file source-language="en" target-language="it" datatype="plaintext" original="messages">
+    <body>
+      <trans-unit id="1">
+        <source>Image too large (&gt; 20 MB)</source>
+        <target>Immagine troppo grande (&gt; 20 MB)</target>
+      </trans-unit>
+      <trans-unit id="2">
+        <source>Cannot display image %file%</source>
+        <target>Impossibile visualizzare l’immagine %file%</target>
+      </trans-unit>
+      <trans-unit id="3">
+        <source>+/- zoom  0 fit  Arrows pan  Ctrl+Q quit</source>
+        <target>+/- zoom  0 adatta  frecce sposta  Ctrl+Q esci</target>
+      </trans-unit>
+      <trans-unit id="4">
+        <source>Image: Zoom In</source>
+        <target>Immagine: Ingrandisci</target>
+      </trans-unit>
+      <trans-unit id="5">
+        <source>Image: Zoom Out</source>
+        <target>Immagine: Riduci</target>
+      </trans-unit>
+      <trans-unit id="6">
+        <source>Image: Fit to Window</source>
+        <target>Immagine: Adatta alla finestra</target>
+      </trans-unit>
+      <trans-unit id="7">
+        <source>Image: Actual Size</source>
+        <target>Immagine: Dimensione reale</target>
+      </trans-unit>
+      <trans-unit id="8">
+        <source>Image: Pan Left</source>
+        <target>Immagine: Sposta a sinistra</target>
+      </trans-unit>
+      <trans-unit id="9">
+        <source>Image: Pan Right</source>
+        <target>Immagine: Sposta a destra</target>
+      </trans-unit>
+      <trans-unit id="10">
+        <source>Image: Pan Up</source>
+        <target>Immagine: Sposta in alto</target>
+      </trans-unit>
+      <trans-unit id="11">
+        <source>Image: Pan Down</source>
+        <target>Immagine: Sposta in basso</target>
+      </trans-unit>
+      <trans-unit id="12">
+        <source>SVG converter path</source>
+        <target>Percorso del convertitore SVG</target>
+      </trans-unit>
+      <trans-unit id="13">
+        <source>rendering…</source>
+        <target>rendering…</target>
+      </trans-unit>
+      <trans-unit id="14">
+        <source>the SVG could not be decoded</source>
+        <target>impossibile decodificare l'SVG</target>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>

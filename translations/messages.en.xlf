@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xliff xmlns="urn:oasis:names:tc:xliff:document:1.2" version="1.2">
+  <file source-language="en" target-language="en" datatype="plaintext" original="messages">
+    <body>
+      <trans-unit id="1">
+        <source>Image too large (&gt; 20 MB)</source>
+        <target>Image too large (&gt; 20 MB)</target>
+      </trans-unit>
+      <trans-unit id="2">
+        <source>Cannot display image %file%</source>
+        <target>Cannot display image %file%</target>
+      </trans-unit>
+      <trans-unit id="3">
+        <source>+/- zoom  0 fit  Arrows pan  Ctrl+Q quit</source>
+        <target>+/- zoom  0 fit  Arrows pan  Ctrl+Q quit</target>
+      </trans-unit>
+      <trans-unit id="4">
+        <source>Image: Zoom In</source>
+        <target>Image: Zoom In</target>
+      </trans-unit>
+      <trans-unit id="5">
+        <source>Image: Zoom Out</source>
+        <target>Image: Zoom Out</target>
+      </trans-unit>
+      <trans-unit id="6">
+        <source>Image: Fit to Window</source>
+        <target>Image: Fit to Window</target>
+      </trans-unit>
+      <trans-unit id="7">
+        <source>Image: Actual Size</source>
+        <target>Image: Actual Size</target>
+      </trans-unit>
+      <trans-unit id="8">
+        <source>Image: Pan Left</source>
+        <target>Image: Pan Left</target>
+      </trans-unit>
+      <trans-unit id="9">
+        <source>Image: Pan Right</source>
+        <target>Image: Pan Right</target>
+      </trans-unit>
+      <trans-unit id="10">
+        <source>Image: Pan Up</source>
+        <target>Image: Pan Up</target>
+      </trans-unit>
+      <trans-unit id="11">
+        <source>Image: Pan Down</source>
+        <target>Image: Pan Down</target>
+      </trans-unit>
+      <trans-unit id="12">
+        <source>SVG converter path</source>
+        <target>SVG converter path</target>
+      </trans-unit>
+      <trans-unit id="13">
+        <source>rendering…</source>
+        <target>rendering…</target>
+      </trans-unit>
+      <trans-unit id="14">
+        <source>the SVG could not be decoded</source>
+        <target>the SVG could not be decoded</target>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>
