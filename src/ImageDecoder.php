@@ -53,19 +53,23 @@ final readonly class ImageDecoder
         if (!$this->gdAvailable) {
             return null; // no GD, no bitmap — the viewer declines like any undecodable file
         }
-        // Arbitrary bytes can't be pre-validated: swallow the warning GD raises
-        // on non-image data and rely on the false return below.
+        // The header's size, read BEFORE decoding: a few KiB of PNG can declare
+        // a 50 000² bitmap, and GD would allocate it in full (outside PHP's
+        // memory_limit) before any check after the decode could run. Bytes
+        // whose size can't be read are not a displayable image either.
+        // Both calls warn on non-image data; the false returns say it instead.
         \set_error_handler(static fn (): bool => true);
-        $gd = \imagecreatefromstring($bytes);
-        \restore_error_handler();
+        try {
+            $size = \getimagesizefromstring($bytes);
+            $gd = false === $size || ($size[0] * $size[1]) > $this->maxPixels ? null : \imagecreatefromstring($bytes);
+        } finally {
+            \restore_error_handler();
+        }
         if (!$gd instanceof \GdImage) {
             return null;
         }
         $width = \imagesx($gd);
         $height = \imagesy($gd);
-        if (($width * $height) > $this->maxPixels) {
-            return null;
-        }
         if (!\imageistruecolor($gd)) {
             \imagepalettetotruecolor($gd);
         }

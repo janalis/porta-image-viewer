@@ -74,6 +74,20 @@ final class ImageDecoderTest extends TestCase
         $this->assertInstanceOf(ImageData::class, new ImageDecoder(maxPixels: 16)->decode($project->path('big.png')), 'exactly at the cap');
     }
 
+    public function testADecompressionBombIsRefusedFromItsHeader(): void
+    {
+        // 24 KiB of PNG that inflates to a 5000×5000 bitmap — past the 16 Mpx
+        // cap. GD allocates outside memory_limit, so only the header can stop it.
+        $chunk = static fn (string $type, string $data): string => \pack('N', \strlen($data)).$type.$data.\pack('N', \crc32($type.$data));
+        $z = \deflate_init(\ZLIB_ENCODING_DEFLATE);
+        \assert(false !== $z, description: 'zlib');
+        $idat = (string) \deflate_add($z, \str_repeat("\0", times: 5001 * 5000), flush_mode: \ZLIB_FINISH);
+        $png = "\x89PNG\r\n\x1a\n".$chunk('IHDR', \pack('NNCCCCC', 5000, 5000, 8, 0, 0, 0, 0)).$chunk('IDAT', $idat).$chunk('IEND', data: '');
+
+        $this->assertLessThan(100_000, \strlen($png));
+        $this->assertNull(new ImageDecoder()->decodeBytes($png));
+    }
+
     public function testWithoutGdEveryImageIsPolitelyUndecodable(): void
     {
         // ext-gd is a suggestion of the host, not a requirement: on a box
