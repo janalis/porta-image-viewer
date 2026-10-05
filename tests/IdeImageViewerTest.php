@@ -13,6 +13,7 @@ use Porta\Editor\BufferService;
 use Porta\Editor\EditorPanes;
 use Porta\Editor\OpenFocus;
 use Porta\Ide;
+use Porta\ImageViewer\ImageViewerWidget;
 use Porta\Tests\Support\ClearsPortaLsp;
 use Porta\Tests\Support\PngFixture;
 use Porta\Tests\Support\PreservesPath;
@@ -168,7 +169,7 @@ final class IdeImageViewerTest extends TestCase
                     $plus = (int) \mb_strpos($grid[$row], needle: '+/- zoom');
                     $fit = (int) \mb_strpos($grid[$row], needle: '0 fit');
                     $viewer = $tui->getById('image-viewer');
-                    $this->assertInstanceOf(EditorPaneWidget::class, $viewer);
+                    $this->assertInstanceOf(ImageViewerWidget::class, $viewer);
                     $label = $viewer->zoomLabel();
                     $this->assertStringStartsWith('Fit', $label);
                     $this->clickAt($tui, $plus, $row);
