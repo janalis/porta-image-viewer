@@ -60,10 +60,10 @@ final class IdeImageViewerTest extends TestCase
     private static function project(array $files): TempProject
     {
         /** @var array<string, mixed> $config */
-        $config = \json_decode($files['.porta.json'] ?? '{}', associative: true);
+        $config = \json_decode($files['.porta.json'] ?? '{}', associative: true, flags: \JSON_THROW_ON_ERROR);
         $config['enabledPlugins'] = ['image-viewer'];
 
-        return new TempProject([...$files, '.porta.json' => (string) \json_encode($config)]);
+        return new TempProject([...$files, '.porta.json' => (string) \json_encode($config, \JSON_THROW_ON_ERROR)]);
     }
 
     public function testThePaneIsHandedTheSameTabHandlerCorePanesGet(): void
@@ -337,7 +337,7 @@ final class IdeImageViewerTest extends TestCase
             // so the oversized file still ROUTES to the image path and the
             // core backstop refuses it (the default claim would drop it to the
             // text path's own 2 MB refusal instead).
-            '.porta.json' => (string) \json_encode(['plugins' => ['image-viewer' => ['maxBytes' => 30 * 1024 * 1024]]]),
+            '.porta.json' => (string) \json_encode(['plugins' => ['image-viewer' => ['maxBytes' => 30 * 1024 * 1024]]], \JSON_THROW_ON_ERROR),
             'fake.png' => 'not an image at all',
             'img.png' => $this->twoColorPng(4, 4),
         ]);
@@ -435,7 +435,7 @@ final class IdeImageViewerTest extends TestCase
         // through to plugins.image-viewer from onReady, so the file stops
         // answering the same question twice.
         $project = self::project([
-            '.porta.json' => (string) \json_encode(['settings' => ['svgConverter' => self::fakeConverter()]]),
+            '.porta.json' => (string) \json_encode(['settings' => ['svgConverter' => self::fakeConverter()]], \JSON_THROW_ON_ERROR),
             'logo.svg' => self::SMALL_SVG,
         ]);
         $this->phpOnlyPath($project);
@@ -448,7 +448,7 @@ final class IdeImageViewerTest extends TestCase
                     Previews::alone($ide); // the picture's status segment, with the keys
                     $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '100 × 50'), what: 'the adopted converter rasterizing the SVG');
                     $this->await(static function () use ($project): bool {
-                        $file = \json_decode((string) \file_get_contents($project->path('.porta.json')), associative: true);
+                        $file = \json_decode((string) \file_get_contents($project->path('.porta.json')), associative: true, flags: \JSON_THROW_ON_ERROR);
 
                         return \is_array($file) && ($file['plugins']['image-viewer']['svgConverter'] ?? null) === self::fakeConverter();
                     }, what: 'the adoption written through to plugins.image-viewer');
@@ -461,7 +461,7 @@ final class IdeImageViewerTest extends TestCase
     public function testAnSvgOpensAsTextBesideAPictureRasterizedByTheConverter(): void
     {
         $project = self::project([
-            '.porta.json' => (string) \json_encode(['plugins' => ['image-viewer' => ['svgConverter' => self::fakeConverter()]]]),
+            '.porta.json' => (string) \json_encode(['plugins' => ['image-viewer' => ['svgConverter' => self::fakeConverter()]]], \JSON_THROW_ON_ERROR),
             'logo.svg' => self::SMALL_SVG,
             'other.svg' => self::SMALL_SVG,
             'binary.svg' => "\xff\xfe\x00<svg",
@@ -511,7 +511,7 @@ final class IdeImageViewerTest extends TestCase
     public function testEditingTheMarkupRerastersThePictureOnceTypingPauses(): void
     {
         $project = self::project([
-            '.porta.json' => (string) \json_encode(['plugins' => ['image-viewer' => ['svgConverter' => self::fakeConverter()]]]),
+            '.porta.json' => (string) \json_encode(['plugins' => ['image-viewer' => ['svgConverter' => self::fakeConverter()]]], \JSON_THROW_ON_ERROR),
             'logo.svg' => self::SMALL_SVG,
         ]);
         $this->phpOnlyPath($project);
@@ -545,7 +545,7 @@ final class IdeImageViewerTest extends TestCase
         // SVG, was refused, and returned. Nothing reloaded until the tab was
         // re-opened by hand. The payload shape now tells the two apart.
         $project = self::project([
-            '.porta.json' => (string) \json_encode(['plugins' => ['image-viewer' => ['svgConverter' => self::fakeConverter()]]]),
+            '.porta.json' => (string) \json_encode(['plugins' => ['image-viewer' => ['svgConverter' => self::fakeConverter()]]], \JSON_THROW_ON_ERROR),
             'logo.svg' => self::SMALL_SVG,
         ]);
         $this->phpOnlyPath($project);
@@ -583,7 +583,7 @@ final class IdeImageViewerTest extends TestCase
     public function testTheEditorToggleGivesTheXmlBack(): void
     {
         $project = self::project([
-            '.porta.json' => (string) \json_encode(['plugins' => ['image-viewer' => ['svgConverter' => self::fakeConverter()]]]),
+            '.porta.json' => (string) \json_encode(['plugins' => ['image-viewer' => ['svgConverter' => self::fakeConverter()]]], \JSON_THROW_ON_ERROR),
             'logo.svg' => self::SMALL_SVG,
         ]);
         $this->phpOnlyPath($project);
@@ -628,9 +628,12 @@ final class IdeImageViewerTest extends TestCase
     public function testTheSvgSettingSendsItBackToTheEditor(): void
     {
         $project = self::project([
-            '.porta.json' => (string) \json_encode([
-                'plugins' => ['image-viewer' => ['svgConverter' => self::fakeConverter(), 'svg' => false]],
-            ]),
+            '.porta.json' => (string) \json_encode(
+                [
+                    'plugins' => ['image-viewer' => ['svgConverter' => self::fakeConverter(), 'svg' => false]],
+                ],
+                \JSON_THROW_ON_ERROR,
+            ),
             'logo.svg' => self::SMALL_SVG,
         ]);
         $this->phpOnlyPath($project);
@@ -654,7 +657,7 @@ final class IdeImageViewerTest extends TestCase
         // beside it — and the viewer claim takes the file as it always did.
         $padding = '<!-- '.\str_repeat('x', times: 2_200_000).' -->';
         $project = self::project([
-            '.porta.json' => (string) \json_encode(['plugins' => ['image-viewer' => ['svgConverter' => self::fakeConverter()]]]),
+            '.porta.json' => (string) \json_encode(['plugins' => ['image-viewer' => ['svgConverter' => self::fakeConverter()]]], \JSON_THROW_ON_ERROR),
             'huge.svg' => \str_replace('<rect', $padding.'<rect', self::SMALL_SVG),
             'huge-binary.svg' => "\xff\xfe\x00<svg".\str_repeat('x', times: 2_200_000),
         ]);
@@ -681,7 +684,7 @@ final class IdeImageViewerTest extends TestCase
     {
         $svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 50\">\n  <rect x=\"0\" y=\"0\" width=\"50\" height=\"50\" fill=\"#284\"/>\n  <circle cx=\"75\" cy=\"25\" r=\"20\"/>\n</svg>\n";
         $project = self::project([
-            '.porta.json' => (string) \json_encode(['plugins' => ['image-viewer' => ['svgConverter' => self::fakeConverter()]]]),
+            '.porta.json' => (string) \json_encode(['plugins' => ['image-viewer' => ['svgConverter' => self::fakeConverter()]]], \JSON_THROW_ON_ERROR),
             'logo.svg' => $svg,
         ]);
         $this->phpOnlyPath($project);

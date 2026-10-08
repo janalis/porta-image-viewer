@@ -141,6 +141,7 @@ final class SvgHitTest
                 }
                 continue;
             }
+            // @noinspection TypesCastingCanBeUsedInspection -- mago rejects a (float) cast of a string it cannot prove numeric
             $args[] = \floatval($token);
             $arity = ['m' => 2, 'l' => 2, 'h' => 1, 'v' => 1, 'c' => 6, 's' => 4, 'q' => 4, 't' => 2, 'a' => 7][\strtolower($command)] ?? 2;
             if (\count($args) < $arity) {
