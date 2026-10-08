@@ -11,6 +11,8 @@ use Porta\ImageViewer\SampleSource;
 use Porta\ImageViewer\ScaledSource;
 use Porta\ImageViewer\ZoomPanModel;
 use Porta\Tests\Support\Probe;
+use Random\Engine\Mt19937;
+use Random\Randomizer;
 
 /** The downscale anti-aliasing: what the rasterizer samples, and when. */
 final class ScaledSourceTest extends TestCase
@@ -108,12 +110,19 @@ final class ScaledSourceTest extends TestCase
         $gd = \imagecreatetruecolor($width, height: $height);
         \imagefilledrectangle($gd, x1: 0, y1: 0, x2: $width - 1, y2: $height - 1, color: (int) \imagecolorallocate($gd, red: 255, green: 255, blue: 255));
         $black = (int) \imagecolorallocate($gd, red: 0, green: 0, blue: 0);
-        \mt_srand(3);
+        $random = new Randomizer(new Mt19937(3));
         for ($i = 0; $i < 60; ++$i) {
-            \imageline($gd, x1: \mt_rand(0, $width - 1), y1: \mt_rand(0, $height - 1), x2: \mt_rand(0, $width - 1), y2: \mt_rand(0, $height - 1), color: $black);
+            \imageline($gd, x1: $random->getInt(0, $width - 1), y1: $random->getInt(0, $height - 1), x2: $random->getInt(0, $width - 1), y2: $random->getInt(0, $height - 1), color: $black);
         }
         for ($i = 0; $i < 40; ++$i) {
-            \imagerectangle($gd, x1: \mt_rand(0, $width - 100), y1: \mt_rand(0, $height - 100), x2: \mt_rand(100, $width - 1), y2: \mt_rand(100, $height - 1), color: $black);
+            \imagerectangle(
+                $gd,
+                x1: $random->getInt(0, $width - 100),
+                y1: $random->getInt(0, $height - 100),
+                x2: $random->getInt(100, $width - 1),
+                y2: $random->getInt(100, $height - 1),
+                color: $black,
+            );
         }
 
         return new ImageData($gd, $width, $height, 0);

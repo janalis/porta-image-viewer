@@ -290,7 +290,7 @@ final class SvgHitTest
     private static function pairs(array $numbers): array
     {
         $pairs = [];
-        for ($i = 0; ($i + 1) < \count($numbers); $i += 2) {
+        for ($i = 0, $length = \count($numbers); ($i + 1) < $length; $i += 2) {
             $pairs[] = [$numbers[$i], $numbers[$i + 1]];
         }
 

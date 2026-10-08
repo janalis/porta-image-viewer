@@ -67,6 +67,6 @@ final class NarrowImagePaneRenderTest extends TestCase
     #[DataProvider('imagePanes')]
     public function testTheImagePaneFitsEveryWidthDownToOne(AbstractWidget $widget): void
     {
-        $this->assertFitsEveryWidth($widget);
+        self::assertFitsEveryWidth($widget);
     }
 }
