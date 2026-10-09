@@ -110,15 +110,11 @@ final class PixelPlacement
      */
     public function render(ImageData $image, float $ratio, ZoomPanModel $view, int $cols, int $rows, ?PixelOutline $outline = null): ?array
     {
-        if (!$this->graphics->available()) {
+        $placement = $this->placement($view, $cols, $rows);
+        if (null === $placement) {
             return null;
         }
-        $rect = $view->visibleRect($cols, 2 * $rows);
-        $firstRow = \intdiv($rect['padHalfRows'], num2: 2);
-        $placedRows = \intdiv($rect['padHalfRows'] + $rect['outHalfRows'] + 1, num2: 2) - $firstRow;
-        if ($rect['outCols'] > KittyPlaceholders::MAX_CELLS || $placedRows > KittyPlaceholders::MAX_CELLS) {
-            return null;
-        }
+        [$rect, $firstRow, $placedRows] = $placement;
 
         // The view, in document pixels, of exactly the cells being covered: a
         // first row that starts on the lower half of a cell reaches half a row
@@ -162,6 +158,29 @@ final class PixelPlacement
         }
 
         return $lines;
+    }
+
+    /**
+     * The visible rect of $view, the pane row the placement starts on and how
+     * many rows it covers — or null when the terminal has no pixels, or the
+     * placement would be wider or taller than it can address.
+     *
+     * @return array{array{srcX: int, srcY: int, padCols: int, padHalfRows: int, outCols: int, outHalfRows: int}, int, int}|null
+     */
+    private function placement(ZoomPanModel $view, int $cols, int $rows): ?array
+    {
+        if (!$this->graphics->available()) {
+            return null;
+        }
+        $rect = $view->visibleRect($cols, 2 * $rows);
+        $firstRow = \intdiv($rect['padHalfRows'], num2: 2);
+        $placedRows = \intdiv($rect['padHalfRows'] + $rect['outHalfRows'] + 1, num2: 2) - $firstRow;
+
+        return (
+            $rect['outCols'] > KittyPlaceholders::MAX_CELLS || $placedRows > KittyPlaceholders::MAX_CELLS
+                ? null
+                : [$rect, $firstRow, $placedRows]
+        );
     }
 
     /** The pane let go of its picture: free the terminal's copies. */

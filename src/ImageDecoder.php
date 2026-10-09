@@ -50,9 +50,22 @@ final readonly class ImageDecoder
      */
     public function decodeBytes(string $bytes): ?ImageData
     {
-        if (!$this->gdAvailable) {
-            return null; // no GD, no bitmap — the viewer declines like any undecodable file
+        // No GD, no bitmap — the viewer declines like any undecodable file.
+        $gd = $this->gdAvailable ? $this->decodeGd($bytes) : null;
+        if (null === $gd) {
+            return null;
         }
+        $width = \imagesx($gd);
+        $height = \imagesy($gd);
+        if (!\imageistruecolor($gd)) {
+            \imagepalettetotruecolor($gd);
+        }
+
+        return new ImageData($gd, $width, $height, \strlen($bytes));
+    }
+
+    private function decodeGd(string $bytes): ?\GdImage
+    {
         // The header's size, read BEFORE decoding: a few KiB of PNG can declare
         // a 50 000² bitmap, and GD would allocate it in full (outside PHP's
         // memory_limit) before any check after the decode could run. Bytes
@@ -65,15 +78,7 @@ final readonly class ImageDecoder
         } finally {
             \restore_error_handler();
         }
-        if (!$gd instanceof \GdImage) {
-            return null;
-        }
-        $width = \imagesx($gd);
-        $height = \imagesy($gd);
-        if (!\imageistruecolor($gd)) {
-            \imagepalettetotruecolor($gd);
-        }
 
-        return new ImageData($gd, $width, $height, \strlen($bytes));
+        return $gd instanceof \GdImage ? $gd : null;
     }
 }

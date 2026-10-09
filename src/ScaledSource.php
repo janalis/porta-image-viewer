@@ -93,12 +93,17 @@ final class ScaledSource
     public function forScale(ImageData $image, float $scale, float $ratio = 1.0): SampleSource
     {
         $relative = $scale / $ratio;
-        if ($relative >= (1.0 - 1e-9)) {
-            return new SampleSource($image, $ratio);
-        }
-        if (null !== $this->memo && $this->source === $image && \abs($this->scale - $relative) < 1e-9) {
-            return $this->memo;
-        }
+
+        return match (true) {
+            $relative >= (1.0 - 1e-9) => new SampleSource($image, $ratio),
+            null !== $this->memo && $this->source === $image && \abs($this->scale - $relative) < 1e-9 => $this->memo,
+            default => $this->resampled($image, $relative, $ratio),
+        };
+    }
+
+    /** forScale() below 1:1 with no memo to reuse: a fresh shrunk copy, memoized. */
+    private function resampled(ImageData $image, float $relative, float $ratio): SampleSource
+    {
         if ($this->source !== $image) {
             $this->levels = [];
         }

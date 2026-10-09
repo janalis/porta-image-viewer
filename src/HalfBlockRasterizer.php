@@ -95,9 +95,19 @@ final class HalfBlockRasterizer
         $pixel = (int) \imagecolorat($image->gd, $x, $y); // coords are clamped; false cannot occur
         $alpha = ($pixel >> 24) & 0x7F; // GD: 0 = opaque … 127 = fully transparent
         $rgb = [($pixel >> 16) & 0xFF, ($pixel >> 8) & 0xFF, $pixel & 0xFF];
-        if (0 === $alpha) {
-            return $rgb;
-        }
+
+        return 0 === $alpha ? $rgb : self::overChecker($rgb, $alpha, $x, $y);
+    }
+
+    /**
+     * A translucent pixel blended over the checkerboard square at source $x, $y.
+     *
+     * @param array{int, int, int} $rgb
+     *
+     * @return array{0: int, 1: int, 2: int}
+     */
+    private static function overChecker(array $rgb, int $alpha, int $x, int $y): array
+    {
         $checker = 0 === ((($x >> 3) + ($y >> 3)) & 1) ? 90 : 140;
         $opacity = 1 - ($alpha / 127);
 

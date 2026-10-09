@@ -343,23 +343,10 @@ final class ImageViewerWidget extends NavigablePaneWidget
      */
     private function contentLines(int $cols, int $rows): array
     {
-        if (null !== $this->image && null !== $this->view) {
-            $pixels = $this->pixels?->render($this->image, $this->rasterScale, $this->view, $cols, $rows);
-            if (null !== $pixels) {
-                return $pixels; // cheap to build, and the placement dedupes itself
-            }
-            $key = $this->imageGeneration.':'.$this->view->stateKey().':'.$cols.':'.$rows;
-            if (null === $this->rasterMemo || $key !== $this->rasterKey) {
-                $this->rasterKey = $key;
-                $this->rasterMemo = HalfBlockRasterizer::render(
-                    $this->scaled->forScale($this->image, $this->view->effectiveScale($cols, 2 * $rows), ratio: $this->rasterScale),
-                    $this->view,
-                    $cols,
-                    $rows,
-                );
-            }
-
-            return $this->rasterMemo;
+        $image = $this->image;
+        $view = $this->view;
+        if (null !== $image && null !== $view) {
+            return $this->imageLines($image, $view, $cols, $rows);
         }
         $message = match (true) {
             null !== $this->error => Text::firstLine($this->error),
@@ -368,6 +355,27 @@ final class ImageViewerWidget extends NavigablePaneWidget
         };
 
         return $this->messagePane($message, null !== $this->error ? Role::DiagError : Role::Dim, $cols, $rows);
+    }
+
+    /** @return list<string> */
+    private function imageLines(ImageData $image, ZoomPanModel $view, int $cols, int $rows): array
+    {
+        $pixels = $this->pixels?->render($image, $this->rasterScale, $view, $cols, $rows);
+        if (null !== $pixels) {
+            return $pixels; // cheap to build, and the placement dedupes itself
+        }
+        $key = $this->imageGeneration.':'.$view->stateKey().':'.$cols.':'.$rows;
+        if (null === $this->rasterMemo || $key !== $this->rasterKey) {
+            $this->rasterKey = $key;
+            $this->rasterMemo = HalfBlockRasterizer::render(
+                $this->scaled->forScale($image, $view->effectiveScale($cols, 2 * $rows), ratio: $this->rasterScale),
+                $view,
+                $cols,
+                $rows,
+            );
+        }
+
+        return $this->rasterMemo;
     }
 
     public function handleInput(string $data): void

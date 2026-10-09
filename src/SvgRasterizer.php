@@ -69,10 +69,7 @@ final readonly class SvgRasterizer implements Rasterizer
             return [$configured, SvgConverter::forBinary($configured)];
         }
         $converter = SvgConverter::discover();
-        if (null === $converter) {
-            return [null, null];
-        }
 
-        return [new ExecutableFinder()->find($converter->binaryName()), $converter];
+        return [null === $converter ? null : new ExecutableFinder()->find($converter->binaryName()), $converter];
     }
 }
