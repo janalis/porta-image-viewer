@@ -98,7 +98,7 @@ trait ZoomPanPane
     {
         $this->syncPixelsPerColumn();
 
-        return null === $this->view ? '' : $this->view->zoomLabel($this->lastCols, 2 * $this->lastRows);
+        return $this->view?->zoomLabel($this->lastCols, 2 * $this->lastRows) ?? '';
     }
 
     /**
