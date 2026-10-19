@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Porta\ImageViewer;
 
-use Porta\Ui\Sgr;
+use Porta\Ui\Graphics\HalfBlockRow;
 
 /**
  * Rasterizes an image into terminal lines: each `▀` cell shows 2 vertical
@@ -20,9 +20,6 @@ use Porta\Ui\Sgr;
  */
 final class HalfBlockRasterizer
 {
-    /** The dark filler for the outside half of a cell that straddles the image edge. */
-    private const array VOID = [30, 30, 30];
-
     /** @return list<string> exactly $rows lines of exactly $cols display columns */
     public static function render(SampleSource $source, ZoomPanModel $view, int $cols, int $rows): array
     {
@@ -39,33 +36,14 @@ final class HalfBlockRasterizer
 
         $lines = [];
         for ($row = 0; $row < $rows; ++$row) {
-            $line = '';
-            $current = null;
+            $pixels = [];
             for ($col = 0; $col < $cols; ++$col) {
-                $top = self::sample($image, $rect, $scale, $col, 2 * $row);
-                $bottom = self::sample($image, $rect, $scale, $col, (2 * $row) + 1);
-                if (null === $top && null === $bottom) {
-                    if (null !== $current) {
-                        $line .= Sgr::RESET;
-                        $current = null;
-                    }
-                    $line .= ' ';
-
-                    continue;
-                }
-                [$tr, $tg, $tb] = $top ?? self::VOID;
-                [$br, $bg, $bb] = $bottom ?? self::VOID;
-                $sgr = "\x1b[38;2;{$tr};{$tg};{$tb};48;2;{$br};{$bg};{$bb}m";
-                if ($sgr !== $current) {
-                    $line .= $sgr;
-                    $current = $sgr;
-                }
-                $line .= '▀';
+                $pixels[] = [
+                    self::sample($image, $rect, $scale, $col, 2 * $row),
+                    self::sample($image, $rect, $scale, $col, (2 * $row) + 1),
+                ];
             }
-            if (null !== $current) {
-                $line .= Sgr::RESET;
-            }
-            $lines[] = $line;
+            $lines[] = HalfBlockRow::encode($pixels);
         }
 
         return $lines;
