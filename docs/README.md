@@ -11,7 +11,8 @@ shimmering; magnifying stays pixel-crisp.
 `.svg` files are drawn by this viewer too — as a [live preview](../../../docs/editor.md#live-preview)
 beside their markup — rasterized by an external converter: the
 image-viewer plugin's `svgConverter` setting if you set one, otherwise `rsvg-convert`, `magick` or
-`convert`, whichever is installed. Zooming in re-renders the drawing rather
+`convert`, whichever is installed; the plugin's Settings page installs
+`rsvg-convert` (Homebrew's `librsvg`) under **Tools**. Zooming in re-renders the drawing rather
 than magnifying pixels, so it stays sharp, and the status bar reports the
 document's own size (100% means 100% of the SVG). With no converter
 installed — or with *Preview SVG beside its markup* turned off on the image-viewer
