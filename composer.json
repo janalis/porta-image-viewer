@@ -13,5 +13,23 @@
         "psr-4": {
             "Porta\\ImageViewer\\": "src/"
         }
+    },
+    "extra": {
+        "porta": {
+            "tools": [
+                {
+                    "name": "rsvg-convert",
+                    "role": "suggested",
+                    "purpose": "shows SVG files as images",
+                    "setting": "svgConverter",
+                    "sources": [
+                        [
+                            "brew",
+                            "librsvg"
+                        ]
+                    ]
+                }
+            ]
+        }
     }
 }
