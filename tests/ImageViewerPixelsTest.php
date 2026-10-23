@@ -30,7 +30,7 @@ final class ImageViewerPixelsTest extends TestCase
 
     private function widget(TerminalGraphics $graphics): ImageViewerWidget
     {
-        return new ImageViewerWidget($this->rasterizer, new Translator('en'), $this->scheduler, graphics: $graphics);
+        return new ImageViewerWidget($this->rasterizer->rasterize(...), new Translator('en'), $this->scheduler, graphics: $graphics);
     }
 
     private static function bitmap(int $width, int $height): ImageData

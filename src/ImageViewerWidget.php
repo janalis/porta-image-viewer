@@ -55,8 +55,14 @@ final class ImageViewerWidget extends NavigablePaneWidget
     /** Memoises the area-averaged copy this pane samples while shrinking. */
     private readonly ScaledSource $scaled;
 
+    /**
+     * @param \Closure(string, ?float, \Closure(string): void, \Closure(string): void): void $rasterize
+     *        SVG source to PNG bytes at a scale (null: the document's own size),
+     *        asynchronously; exactly one callback fires unless a newer call
+     *        supersedes it. {@see SvgRasterizer::rasterize()} in production.
+     */
     public function __construct(
-        private readonly Rasterizer $rasterizer,
+        private readonly \Closure $rasterize,
         private readonly Translator $translator,
         ?Scheduler $scheduler = null,
         ?Styles $styles = null,
@@ -172,7 +178,7 @@ final class ImageViewerWidget extends NavigablePaneWidget
         \assert(null !== $svg, description: 'a rasterization is only ever asked for a shown document');
         $this->pending->settle($scale ?? 1.0);
         $this->rasterizing = true;
-        $this->rasterizer->rasterize(
+        ($this->rasterize)(
             $svg,
             $scale,
             function (string $png) use ($svg, $scale): void {

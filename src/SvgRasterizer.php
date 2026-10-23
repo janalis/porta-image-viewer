@@ -8,7 +8,7 @@ use Porta\Support\SingleSlotProcess;
 use Symfony\Component\Process\ExecutableFinder;
 
 /**
- * The converter-backed {@see Rasterizer}: an external SVG renderer as an async
+ * SVG to PNG for the image pane: an external SVG renderer as an async
  * child process, the document fed via stdin and the PNG read back from stdout —
  * no temp file at either end. The one-slot-latest-wins run and its exit-code
  * bookkeeping are {@see SingleSlotProcess}'s — the same shape of problem
@@ -18,7 +18,7 @@ use Symfony\Component\Process\ExecutableFinder;
  * Which converter, and how it is driven, is {@see SvgConverter}: an explicit
  * path (the `svgConverter` setting) wins over discovery, the `dotPath` pattern.
  */
-final readonly class SvgRasterizer implements Rasterizer
+final readonly class SvgRasterizer
 {
     /**
      * @param null|(\Closure(): ?string)|string $converterPath the "SVG converter" setting; '' resolves to

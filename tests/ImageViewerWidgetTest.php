@@ -36,7 +36,7 @@ final class ImageViewerWidgetTest extends TestCase
     /** A pane whose converter and debounce are both scripted — the vector-mode rig. */
     private function vectorWidget(): ImageViewerWidget
     {
-        return new ImageViewerWidget($this->rasterizer, new Translator('en'), scheduler: $this->scheduler);
+        return new ImageViewerWidget($this->rasterizer->rasterize(...), new Translator('en'), scheduler: $this->scheduler);
     }
 
     /** Let the re-render debounce elapse, as the event loop would. */
@@ -67,7 +67,7 @@ final class ImageViewerWidgetTest extends TestCase
 
     public function testAFocusedPaneShowsAFocusFrameThatSurvivesNoAnsi(): void
     {
-        $widget = new ImageViewerWidget(new FakeRasterizer(), new Translator('en'));
+        $widget = new ImageViewerWidget(new FakeRasterizer()->rasterize(...), new Translator('en'));
         $plain = static fn (array $lines): string => \implode("\n", \array_map(AnsiUtils::stripAnsiCodes(...), $lines));
 
         $unfocused = $plain($widget->render(new RenderContext(12, 4)));
@@ -110,7 +110,7 @@ final class ImageViewerWidgetTest extends TestCase
 
     public function testRendersBlankWithoutAnImageAndNothingOnAZeroSizePane(): void
     {
-        $widget = new ImageViewerWidget(new FakeRasterizer(), new Translator('en'));
+        $widget = new ImageViewerWidget(new FakeRasterizer()->rasterize(...), new Translator('en'));
         $this->assertSame([], $widget->render(new RenderContext(10, 0)), 'zero rows');
         $this->assertSame(\array_fill(0, count: 3, value: \str_repeat(' ', times: 10)), $widget->render(new RenderContext(10, 3)));
         $this->assertSame('', $widget->zoomLabel(), 'no image, no label');
@@ -126,7 +126,7 @@ final class ImageViewerWidgetTest extends TestCase
     {
         // The pane answers for its whole segment, hints included: the status bar
         // used to hold one hint string per viewer and had to know which was which.
-        $widget = new ImageViewerWidget(new FakeRasterizer(), new Translator('en'));
+        $widget = new ImageViewerWidget(new FakeRasterizer()->rasterize(...), new Translator('en'));
         $this->assertSame('+/- zoom  0 fit  Arrows pan  Ctrl+Q quit', $widget->statusRight(), 'an empty pane still names its keys');
 
         $widget->show('/p/a.png', $this->gradient());
@@ -143,7 +143,7 @@ final class ImageViewerWidgetTest extends TestCase
         // 2 imagecolorat() calls per cell per frame: a toast or a diagnostics
         // push invalidates the widget, and the identical picture re-rasterized
         // on every such frame (the 300-486ms slow-paints in perf.log).
-        $widget = new ImageViewerWidget(new FakeRasterizer(), new Translator('en'));
+        $widget = new ImageViewerWidget(new FakeRasterizer()->rasterize(...), new Translator('en'));
         $widget->show('/p/a.png', $this->gradient());
         $context = new RenderContext(20, 6);
 
@@ -189,7 +189,7 @@ final class ImageViewerWidgetTest extends TestCase
 
     public function testTheZoomHintsAreStatusCellsThatZoomAsTheirKeysDo(): void
     {
-        $widget = new ImageViewerWidget(new FakeRasterizer(), new Translator('en'));
+        $widget = new ImageViewerWidget(new FakeRasterizer()->rasterize(...), new Translator('en'));
         $this->assertSame([], $widget->statusClicks(), 'nothing shown, nothing to zoom');
         $widget->show('/p/a.png', $this->gradient());
         $widget->render(new RenderContext(8, 2));
@@ -213,7 +213,7 @@ final class ImageViewerWidgetTest extends TestCase
         // characters would land the fit cell on the wrong words.
         $translator = new Translator('ja');
         $translator->addCatalogDirectory(\dirname(__DIR__).'/translations');
-        $widget = new ImageViewerWidget(new FakeRasterizer(), $translator);
+        $widget = new ImageViewerWidget(new FakeRasterizer()->rasterize(...), $translator);
         $widget->show('/p/a.png', $this->gradient());
         $widget->render(new RenderContext(8, 2));
 
@@ -234,7 +234,7 @@ final class ImageViewerWidgetTest extends TestCase
 
     public function testShowsAnImageAndZoomKeysDriveTheLabel(): void
     {
-        $widget = new ImageViewerWidget(new FakeRasterizer(), new Translator('en'));
+        $widget = new ImageViewerWidget(new FakeRasterizer()->rasterize(...), new Translator('en'));
         $widget->show('/p/a.png', $this->gradient());
         $widget->render(new RenderContext(8, 2)); // fit = min(8/64, 4/8) = 0.125
 
@@ -262,7 +262,7 @@ final class ImageViewerWidgetTest extends TestCase
 
     public function testATrackpadBurstGlidesBetweenTheRungs(): void
     {
-        $widget = new ImageViewerWidget(new FakeRasterizer(), new Translator('en'));
+        $widget = new ImageViewerWidget(new FakeRasterizer()->rasterize(...), new Translator('en'));
         $widget->show('/p/a.png', $this->gradient());
         $widget->render(new RenderContext(8, 2));
         $widget->handleInput('1'); // 100%, off the fit
@@ -279,7 +279,7 @@ final class ImageViewerWidgetTest extends TestCase
 
     public function testArrowsPanAndShiftPansFiveTimesAsFar(): void
     {
-        $widget = new ImageViewerWidget(new FakeRasterizer(), new Translator('en'));
+        $widget = new ImageViewerWidget(new FakeRasterizer()->rasterize(...), new Translator('en'));
         $widget->show('/p/a.png', $this->gradient());
         $widget->render(new RenderContext(4, 2)); // viewport 4×4 px at 100%
         $widget->handleInput('1');
@@ -314,7 +314,7 @@ final class ImageViewerWidgetTest extends TestCase
 
     public function testPassThroughActionsFireTheCallbacks(): void
     {
-        $widget = new ImageViewerWidget(new FakeRasterizer(), new Translator('en'));
+        $widget = new ImageViewerWidget(new FakeRasterizer()->rasterize(...), new Translator('en'));
         $handler = new RecordingViewerTabHandler();
         $widget->setHandler($handler);
         $widget->show('/p/a.png', $this->gradient());
@@ -594,7 +594,7 @@ final class ImageViewerWidgetTest extends TestCase
 
     public function testABitmapHasNoSourceAndAnEmptyPaneNothingToPress(): void
     {
-        $widget = new ImageViewerWidget(new FakeRasterizer(), new Translator('en'));
+        $widget = new ImageViewerWidget(new FakeRasterizer()->rasterize(...), new Translator('en'));
         $handler = new RecordingViewerTabHandler();
         $widget->setHandler($handler);
         $this->assertFalse($widget->press(1, 1), 'nothing shown, nothing to drag');

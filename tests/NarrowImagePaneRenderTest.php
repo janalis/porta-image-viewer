@@ -52,16 +52,16 @@ final class NarrowImagePaneRenderTest extends TestCase
      */
     public static function imagePanes(): iterable
     {
-        $shown = new ImageViewerWidget(new FakeRasterizer(), new Translator('en'), scheduler: new FakeScheduler());
+        $shown = new ImageViewerWidget(new FakeRasterizer()->rasterize(...), new Translator('en'), scheduler: new FakeScheduler());
         $shown->show('/p/a.png', self::gradient());
         yield 'image' => [$shown];
 
-        $focused = new ImageViewerWidget(new FakeRasterizer(), new Translator('en'), scheduler: new FakeScheduler());
+        $focused = new ImageViewerWidget(new FakeRasterizer()->rasterize(...), new Translator('en'), scheduler: new FakeScheduler());
         $focused->show('/p/a.png', self::gradient());
         $focused->setFocused(true);
         yield 'image, focused' => [$focused];
 
-        yield 'no image' => [new ImageViewerWidget(new FakeRasterizer(), new Translator('en'))];
+        yield 'no image' => [new ImageViewerWidget(new FakeRasterizer()->rasterize(...), new Translator('en'))];
     }
 
     #[DataProvider('imagePanes')]
