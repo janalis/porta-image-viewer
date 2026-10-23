@@ -555,7 +555,7 @@ final class ImageViewerWidgetTest extends TestCase
         $plugin = require \dirname(__DIR__).'/plugin.php';
         $plugin->activate($api);
 
-        $declared = \array_column($api->bufferedActions(), 'id');
+        $declared = \array_column($api->contributions()->actions->all(), 'id');
         /** @var array<string, list<string>> $bound */
         $bound = Probe::invokeStatic(ImageViewerWidget::class, 'getDefaultKeybindings');
 
