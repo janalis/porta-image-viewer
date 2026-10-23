@@ -9,7 +9,6 @@ use Porta\Config\ActionCatalog;
 use Porta\I18n\Translator;
 use Porta\ImageViewer\ImageData;
 use Porta\ImageViewer\ImageViewerWidget;
-use Porta\Plugin\Api\PluginApi;
 use Porta\Plugin\Runtime\PluginManager;
 use Porta\Plugin\Runtime\PluginSettings;
 use Porta\Tests\Support\FakeRasterizer;
@@ -551,7 +550,7 @@ final class ImageViewerWidgetTest extends TestCase
         // nothing binds is a dead keymap row, a bound key nothing declares is a
         // key the user can neither find nor rebind.
         $manager = new PluginManager(new EventDispatcher(), new PluginSettings('/p', []));
-        $api = new PluginApi('image-viewer', $manager, '/p', new PluginSettings('/p', []));
+        $api = $manager->api('image-viewer', '/p', new PluginSettings('/p', []));
         $plugin = require \dirname(__DIR__).'/plugin.php';
         $plugin->activate($api);
 
