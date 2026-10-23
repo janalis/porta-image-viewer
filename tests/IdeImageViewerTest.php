@@ -148,8 +148,6 @@ final class IdeImageViewerTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     /** The zoom hints on the status bar are buttons: `+` zooms in, the fit hint fits. */
@@ -285,8 +283,6 @@ final class IdeImageViewerTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     public function testImageTabGuardsEditorHostedModals(): void
@@ -325,8 +321,6 @@ final class IdeImageViewerTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     public function testImageOpenRejectsOversizedCorruptAndLastTabCloseEmptiesTheEditor(): void
@@ -367,8 +361,6 @@ final class IdeImageViewerTest extends TestCase
                 },
             ],
         );
-
-        $this->addToAssertionCount(1);
     }
 
     /** PNG bytes for a $width×$height image split vertically: left half red, right half blue. */
@@ -455,7 +447,6 @@ final class IdeImageViewerTest extends TestCase
                 },
             ],
         );
-        $this->addToAssertionCount(1);
     }
 
     public function testAnSvgOpensAsTextBesideAPictureRasterizedByTheConverter(): void
