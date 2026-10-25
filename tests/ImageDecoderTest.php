@@ -74,6 +74,40 @@ final class ImageDecoderTest extends TestCase
         $this->assertInstanceOf(ImageData::class, new ImageDecoder(maxPixels: 16)->decode($project->path('big.png')), 'exactly at the cap');
     }
 
+    /** The cap counts width times height: a picture over it is refused whichever side is the long one. */
+    public function testThePixelCapCountsBothSides(): void
+    {
+        $png = static function (int $width, int $height): string {
+            \ob_start();
+            \imagepng(\imagecreatetruecolor($width, $height));
+
+            return (string) \ob_get_clean();
+        };
+        $decoder = new ImageDecoder(maxPixels: 150);
+
+        $this->assertNull($decoder->decodeBytes($png(10, height: 20)));
+        $this->assertNull($decoder->decodeBytes($png(20, height: 10)));
+        $this->assertInstanceOf(ImageData::class, $decoder->decodeBytes($png(10, height: 15)));
+    }
+
+    /**
+     * What GD says about bytes it cannot read stays with the decoder: its
+     * answer is the null. Too short to have a header, GD's size probe
+     * complains; a header with nothing after it, its decoder does.
+     */
+    public function testUnreadableBytesLeaveNoWarningBehind(): void
+    {
+        \ob_start();
+        \imagepng(\imagecreatetruecolor(4, height: 4));
+        $headerOnly = \substr((string) \ob_get_clean(), offset: 0, length: 40);
+
+        foreach (['too short' => 'garbage', 'a header alone' => $headerOnly] as $what => $bytes) {
+            \error_clear_last();
+            $this->assertNull(new ImageDecoder()->decodeBytes($bytes), $what);
+            $this->assertNull(\error_get_last(), $what);
+        }
+    }
+
     public function testADecompressionBombIsRefusedFromItsHeader(): void
     {
         // 24 KiB of PNG that inflates to a 5000×5000 bitmap — past the 16 Mpx

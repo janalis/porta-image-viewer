@@ -17,7 +17,7 @@ use Symfony\Component\Tui\Ansi\AnsiUtils;
 final class PixelPlacementTest extends TestCase
 {
     /** A $width × $height image, its left half red and its right half blue. */
-    private static function halves(int $width, int $height): ImageData
+    public static function halves(int $width, int $height): ImageData
     {
         $gd = \imagecreatetruecolor($width, height: $height);
         \imagefilledrectangle($gd, x1: 0, y1: 0, x2: \intdiv($width, num2: 2) - 1, y2: $height - 1, color: (int) \imagecolorallocate($gd, red: 255, green: 0, blue: 0));

@@ -124,6 +124,35 @@ final class SvgHitTestTest extends TestCase
         $this->assertNull(self::at($svg, 50, 52), 'two pixels off is not');
     }
 
+    /** The slop is a pixel and a half on every side of a box, that far and no farther; inside the box needs none of it. */
+    public function testTheSlopReachesExactlyAPixelAndAHalfOnEverySide(): void
+    {
+        $svg = self::svg('<rect x="10" y="10" width="10" height="10"/>');
+        $hits = static fn (float $x, float $y): bool => null !== self::at($svg, $x, $y);
+
+        $this->assertSame(
+            [true, true, true, true, true, false, false, false, false],
+            [$hits(8.5, y: 15), $hits(21.5, y: 15), $hits(15, y: 8.5), $hits(15, y: 21.5), $hits(10.5, y: 10.5), $hits(8.4, y: 15), $hits(21.6, y: 15), $hits(15, y: 8.4), $hits(15, y: 21.6)],
+        );
+    }
+
+    public function testHitTestingLeavesLibxmlAsItFoundIt(): void
+    {
+        // Collecting errors already — switching it off would clear them anyway.
+        $previous = \libxml_use_internal_errors(true);
+        try {
+            SvgHitTest::elementAt('<svg><g></svg>', 10, 10, 1, 1);
+
+            $this->assertSame([], \libxml_get_errors(), 'the broken document\'s errors are not left to the caller');
+            $this->assertTrue(\libxml_use_internal_errors(false), 'and its error mode is as it was');
+            SvgHitTest::elementAt('<svg><g></svg>', 10, 10, 1, 1);
+            $this->assertFalse(\libxml_use_internal_errors(true));
+        } finally {
+            \libxml_clear_errors();
+            \libxml_use_internal_errors($previous);
+        }
+    }
+
     public function testAViewBoxFitsInsideThePictureNotAcrossIt(): void
     {
         // A 50 × 25 viewBox on a 200 × 50 picture: scaled 2×, not 4×, and

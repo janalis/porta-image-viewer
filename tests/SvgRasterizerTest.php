@@ -169,6 +169,14 @@ final class SvgRasterizerTest extends TestCase
         $this->assertSame(self::stub(), new SvgRasterizer(\sys_get_temp_dir(), self::stub())->binary());
     }
 
+    /** A setting of only spaces is no path: discovery runs, and finds nothing here. */
+    public function testABlankConverterPathIsNoPath(): void
+    {
+        \putenv('PATH=/nonexistent');
+
+        $this->assertNull(new SvgRasterizer(\sys_get_temp_dir(), '   ')->binary());
+    }
+
     public function testAClosurePathIsReReadPerCallSoASettingsEditApplies(): void
     {
         // The plugin hands a closure over its `svgConverter` setting rather
