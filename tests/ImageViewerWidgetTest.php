@@ -322,12 +322,11 @@ final class ImageViewerWidgetTest extends TestCase
         $widget->handleInput("\x1b[1;5C"); // ctrl+right → next tab
         $widget->handleInput("\x1b[1;5D"); // ctrl+left → previous tab
         $widget->handleInput("\x1bw"); // alt+w → close tab
-        $widget->handleInput("\x10"); // ctrl+p → go to file
         $widget->handleInput("\x1b\x13"); // ctrl+alt+s (legacy: ESC + ctrl+s) → save all
         $widget->handleInput('='); // zoom → onViewChanged
         $widget->zoomAt(1, 2, 1); // ctrl+wheel zoom → onViewChanged too
 
-        $this->assertSame(['cycle:1', 'cycle:-1', 'close', 'goto', 'save_all', 'view', 'view'], $handler->events);
+        $this->assertSame(['cycle:1', 'cycle:-1', 'close', 'save_all', 'view', 'view'], $handler->events);
         $this->assertSame('50%', $widget->zoomLabel(), 'wheel zoom stepped the ladder');
     }
 

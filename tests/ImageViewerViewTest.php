@@ -145,7 +145,7 @@ final class ImageViewerViewTest extends TestCase
     public function testTheTabKeysNeedNoHandler(): void
     {
         $widget = $this->bitmapWidget(20, 10);
-        $keys = ["\x1b[1;5C", "\x1b[1;5D", "\x1b[1;5S", "\x1bw", "\x1b[110;6u", "\x10", "\x1b\x13"];
+        $keys = ["\x1b[1;5C", "\x1b[1;5D", "\x1b[1;5S", "\x1bw", "\x1b\x13"];
         foreach ($keys as $key) {
             $widget->handleInput($key);
         }
@@ -155,7 +155,7 @@ final class ImageViewerViewTest extends TestCase
         foreach ($keys as $key) {
             $widget->handleInput($key);
         }
-        $this->assertSame(['cycle:1', 'cycle:-1', 'close', 'close', 'goto', 'goto', 'save_all'], $handler->events, 'ctrl+f4 closes and ctrl+shift+n goes to a file too');
+        $this->assertSame(['cycle:1', 'cycle:-1', 'close', 'close', 'save_all'], $handler->events, 'ctrl+f4 closes too; Go to File is the IDE\'s own key');
     }
 
     /** Every new thing to show repaints: a picture, a document, a clear, and each of the converter's answers. */
