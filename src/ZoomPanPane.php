@@ -11,6 +11,7 @@ use Porta\Ui\Role;
 use Porta\Widget\NavigablePaneWidget;
 use Porta\Workbench\StatusClickSpan;
 use Symfony\Component\Tui\Ansi\AnsiUtils;
+use Symfony\Component\Tui\Render\RenderContext;
 
 /**
  * The zoom-pan chrome the image and graph panes share: one {@see ZoomPanModel}
@@ -242,6 +243,34 @@ trait ZoomPanPane
 
         return $lines;
     }
+
+    /**
+     * This frame's lines: the pane's content, with — while focused — a
+     * box-drawing frame over its edge ring, the focus cue a caret-less,
+     * row-less pane still needs (accent-tinted with colour, a bare box under
+     * --no-ansi). None in a context with no room.
+     *
+     * @return list<string>
+     */
+    private function framedLines(RenderContext $context): array
+    {
+        $cols = $context->getColumns();
+        $rows = $context->getRows();
+        if ($cols < 1 || $rows < 1) {
+            return [];
+        }
+        $this->beginFrame($cols, $rows);
+        $lines = $this->contentLines($cols, $rows);
+
+        return $this->isFocused() && $cols >= 3 && $rows >= 3 ? $this->focusFrame($lines, $cols, $rows) : $lines;
+    }
+
+    /**
+     * The pane's own picture for a $cols × $rows frame.
+     *
+     * @return list<string>
+     */
+    abstract private function contentLines(int $cols, int $rows): array;
 
     /** The one-row banner that outranks the focus frame's top border: an error must not hide behind focus chrome. */
     private function errorBanner(string $error, int $cols): string

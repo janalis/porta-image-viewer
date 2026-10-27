@@ -318,24 +318,11 @@ final class ImageViewerWidget extends NavigablePaneWidget
     /** @return list<string> */
     public function render(RenderContext $context): array
     {
-        $cols = $context->getColumns();
-        $rows = $context->getRows();
-        if ($cols < 1 || $rows < 1) {
-            return [];
-        }
-        $this->beginFrame($cols, $rows);
-        $lines = $this->contentLines($cols, $rows);
-
-        // A caret-less, row-less pane still needs a focus cue like its siblings:
-        // a box-drawing frame drawn over the image's edge ring while focused. The
-        // glyph carries it (accent-tinted with colour, a bare box under --no-ansi).
-        if ($this->isFocused() && $cols >= 3 && $rows >= 3) {
-            $lines = $this->focusFrame($lines, $cols, $rows);
-        }
+        $lines = $this->framedLines($context);
         // A vector tab's banner outranks the focus frame's top border, the graph
         // viewer's rule — a converter error must not hide behind focus chrome.
-        if (null !== $this->image && null !== $this->error) {
-            $lines[0] = $this->errorBanner($this->error, $cols);
+        if ([] !== $lines && null !== $this->image && null !== $this->error) {
+            $lines[0] = $this->errorBanner($this->error, $context->getColumns());
         }
 
         return $lines;
@@ -402,12 +389,7 @@ final class ImageViewerWidget extends NavigablePaneWidget
             $kb->matches($data, 'image_pan_right') => $this->pan(2, 0, $data),
             $kb->matches($data, 'image_pan_up') => $this->pan(0, -4, $data),
             $kb->matches($data, 'image_pan_down') => $this->pan(0, 4, $data),
-            $kb->matches($data, 'next_buffer') => $this->handler?->cycleBuffer(1),
-            $kb->matches($data, 'prev_buffer') => $this->handler?->cycleBuffer(-1),
-            $kb->matches($data, 'close_buffer') => $this->handler?->closeBuffer(),
-            $kb->matches($data, 'goto_file') => $this->handler?->openGotoFile(),
-            $kb->matches($data, 'save_all') => $this->handler?->saveAll(),
-            default => null,
+            default => $this->tabKey($data),
         };
     }
 
@@ -423,13 +405,7 @@ final class ImageViewerWidget extends NavigablePaneWidget
             'image_pan_right' => [Key::RIGHT, 'shift+right'],
             'image_pan_up' => [Key::UP, 'shift+up'],
             'image_pan_down' => [Key::DOWN, 'shift+down'],
-            // Re-bound to the editor's defaults so tab management keeps working
-            // while the code editor is detached (see EditorKeymap).
-            'next_buffer' => ['ctrl+right'],
-            'prev_buffer' => ['ctrl+left'],
-            'close_buffer' => ['ctrl+f4', 'alt+w'],
-            'goto_file' => ['ctrl+shift+n', 'ctrl+p'],
-            'save_all' => ['ctrl+alt+s'],
+            ...self::TAB_KEYS,
         ];
     }
 }

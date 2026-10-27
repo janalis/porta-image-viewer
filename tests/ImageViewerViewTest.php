@@ -250,6 +250,7 @@ final class ImageViewerViewTest extends TestCase
 
         $this->assertSame(' ✗ broken '.\str_repeat(' ', times: 20), $rows[0], 'its first line only');
         $this->assertStringNotContainsString('broken', $rows[1]);
+        $this->assertSame([], $widget->render(new RenderContext(0, 5)), 'no room, no banner either');
     }
 
     /** A pane one column or one row big still shows the picture; three by three is enough to frame it. */
