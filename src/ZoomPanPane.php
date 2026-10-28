@@ -78,10 +78,17 @@ trait ZoomPanPane
      */
     private function beginFrame(int $cols, int $rows): void
     {
+        $resized = $cols !== $this->lastCols || $rows !== $this->lastRows;
         $this->lastCols = $cols;
         $this->lastRows = $rows;
         $this->syncPixelsPerColumn();
         $this->scheduleRefine();
+        if ($resized && null !== $this->view) {
+            // The status bar asked for the zoom before this frame said how
+            // big the pane is: a fit read off the old size ('Fit (40%)' for
+            // 65%) stayed up until a key. One more frame, only on a change.
+            $this->handler?->viewChanged();
+        }
     }
 
     /**

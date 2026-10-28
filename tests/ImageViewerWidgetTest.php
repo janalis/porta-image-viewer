@@ -318,6 +318,7 @@ final class ImageViewerWidgetTest extends TestCase
         $widget->setHandler($handler);
         $widget->show('/p/a.png', $this->gradient());
         $widget->render(new RenderContext(8, 2));
+        $handler->events = []; // the first frame's own refresh — its test is below
 
         $widget->handleInput("\x1b[1;5C"); // ctrl+right → next tab
         $widget->handleInput("\x1b[1;5D"); // ctrl+left → previous tab
@@ -328,6 +329,26 @@ final class ImageViewerWidgetTest extends TestCase
 
         $this->assertSame(['cycle:1', 'cycle:-1', 'close', 'save_all', 'view', 'view'], $handler->events);
         $this->assertSame('50%', $widget->zoomLabel(), 'wheel zoom stepped the ladder');
+    }
+
+    public function testAFrameOfANewSizeRefreshesTheStatusBarsZoom(): void
+    {
+        $widget = new ImageViewerWidget(new FakeRasterizer()->rasterize(...), new Translator('en'));
+        $handler = new RecordingViewerTabHandler();
+        $widget->setHandler($handler);
+        $widget->render(new RenderContext(8, 2));
+        $this->assertSame([], $handler->events, 'nothing shown, no zoom to tell of');
+
+        $widget->show('/p/a.png', $this->gradient());
+        $this->assertSame('Fit (13%)', $widget->zoomLabel(), 'the size the empty pane last drew at');
+        $widget->render(new RenderContext(16, 2));
+
+        // The bar read the label before this frame: it is asked again.
+        $this->assertSame(['view'], $handler->events);
+        $this->assertSame('Fit (25%)', $widget->zoomLabel());
+
+        $widget->render(new RenderContext(16, 2));
+        $this->assertSame(['view'], $handler->events, 'the same size again: no frame more');
     }
 
     public function testAnSvgIsProbedAtItsOwnSizeAndPaintsWhatComesBack(): void
