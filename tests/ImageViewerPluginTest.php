@@ -30,7 +30,7 @@ final class ImageViewerPluginTest extends TestCase
         $this->manager = new PluginManager(new EventDispatcher(), $this->settings);
         $this->manager->wireRuntime(TestPluginRuntime::create(new CodeEditorWidget(), new StatusBarWidget()));
         $api = $this->manager->api('image-viewer', $project->dir, $this->settings);
-        $plugin = require \dirname(__DIR__).'/plugin.php';
+        $plugin = require \dirname(__DIR__).'/porta.php';
         $plugin->activate($api);
         $this->manager->commit($api, $plugin);
     }

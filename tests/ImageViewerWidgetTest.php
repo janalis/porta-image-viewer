@@ -565,13 +565,13 @@ final class ImageViewerWidgetTest extends TestCase
     public function testItBindsExactlyTheActionsThePluginDeclares(): void
     {
         // The pane's keys and the keymap page's rows are both this plugin's
-        // now — plugin.php declares the ids, the widget binds them — and each
+        // now — porta.php declares the ids, the widget binds them — and each
         // direction catches what the other cannot see: a declared action
         // nothing binds is a dead keymap row, a bound key nothing declares is a
         // key the user can neither find nor rebind.
         $manager = new PluginManager(new EventDispatcher(), new PluginSettings('/p', []));
         $api = $manager->api('image-viewer', '/p', new PluginSettings('/p', []));
-        $plugin = require \dirname(__DIR__).'/plugin.php';
+        $plugin = require \dirname(__DIR__).'/porta.php';
         $plugin->activate($api);
 
         $declared = \array_column($api->contributions()->actions->all(), 'id');
