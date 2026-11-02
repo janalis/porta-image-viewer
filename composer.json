@@ -1,5 +1,5 @@
 {
-    "name": "porta/image-viewer",
+    "name": "janalis/porta-image-viewer",
     "description": "Shows images and SVGs in an editor pane, as half-block cells",
     "type": "porta-plugin",
     "license": "MIT",
