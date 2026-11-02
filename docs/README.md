@@ -8,6 +8,8 @@ status bar; pan with the arrows or the wheel. Shrinking averages
 the pixels it covers, so a downscaled image keeps its thin lines instead of
 shimmering; magnifying stays pixel-crisp.
 
+![A PNG opened in the image viewer](/screenshots/plugin-image-viewer.svg)
+
 `.svg` files are drawn by this viewer too — as a [live preview](../../../docs/editor.md#live-preview)
 beside their markup — rasterized by an external converter: the
 image-viewer plugin's `svgConverter` setting if you set one, otherwise `rsvg-convert`, `magick` or
