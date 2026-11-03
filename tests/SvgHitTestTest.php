@@ -100,10 +100,11 @@ final class SvgHitTestTest extends TestCase
 
     public function testTheTopmostShapeWinsAndUndrawnSubtreesDoNot(): void
     {
-        $svg = "<?xml version=\"1.0\"?>\n<!DOCTYPE svg>\n<!-- <rect> in a comment -->\n"
-        .self::svg(
-            '<defs><rect id="d" x="0" y="0" width="100" height="100"/></defs><rect x="0" y="0" width="100" height="100"/><![CDATA[<rect x="9">]]><g><circle cx="50" cy="50" r="10"/></g>',
-        );
+        $svg =
+            "<?xml version=\"1.0\"?>\n<!DOCTYPE svg>\n<!-- <rect> in a comment -->\n"
+            .self::svg(
+                '<defs><rect id="d" x="0" y="0" width="100" height="100"/></defs><rect x="0" y="0" width="100" height="100"/><![CDATA[<rect x="9">]]><g><circle cx="50" cy="50" r="10"/></g>',
+            );
 
         $this->assertSame('<circle cx="', self::at($svg, 50, 50), 'drawn last, so on top');
         $this->assertSame('<rect x="0" ', self::at($svg, 5, 5), 'the drawn rect — the one in <defs> is not drawn where it stands');
