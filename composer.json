@@ -29,7 +29,11 @@
                         ]
                     ]
                 }
-            ]
+            ],
+            "store": {
+                "title": "Image Viewer",
+                "category": "viewers"
+            }
         }
     }
 }
