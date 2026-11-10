@@ -2,6 +2,8 @@
 
 Shows images and SVGs in an editor pane, as half-block cells.
 
+![A PNG opened in the image viewer](https://janalis.github.io/porta/screenshots/plugin-image-viewer.svg)
+
 This is `janalis/porta-image-viewer`, one of the plugins bundled with
 [Porta](https://github.com/janalis/porta), the terminal IDE for PHP. Porta
 ships it already, on by default: turn it off under **Settings → Plugins**.
