@@ -8,6 +8,7 @@ use Porta\ImageViewer\ImageViewerWidget;
 use Porta\ImageViewer\SvgConverter;
 use Porta\ImageViewer\SvgRasterizer;
 use Porta\Plugin\Api\AbstractPlugin;
+use Porta\Plugin\Api\Capability;
 use Porta\Plugin\Api\LegacyCoreSettings;
 use Porta\Plugin\Api\PluginApi;
 use Porta\Support\ProjectPaths;
@@ -80,8 +81,15 @@ return new class('image-viewer') extends AbstractPlugin {
         });
 
         $decoder = new ImageDecoder();
-        $svg = new SvgRasterizer($api->projectRoot(), static function () use (&$adopted, $api): ?string {
+        $converter = static function () use (&$adopted, $api): ?string {
             return self::path($adopted['svgConverter'] ?? $api->setting('svgConverter'));
+        };
+        $svg = new SvgRasterizer($api->projectRoot(), $converter);
+        // Core draws the SVG pictures of plugin pages with the converter this
+        // plugin drives, the user's choice of it included — a rasterizer per
+        // picture, since one slot runs one process and the store asks for several.
+        $api->provide(Capability::SvgRasterizer, static function (string $document, int $width, Closure $onPng) use ($api, $converter): void {
+            new SvgRasterizer($api->projectRoot(), $converter)->atWidth($document, $width, $onPng);
         });
         // The keys this pane binds — declared so Settings → Keymap lists them
         // and .porta.json may rebind them. The DEFAULTS live in the pane's own

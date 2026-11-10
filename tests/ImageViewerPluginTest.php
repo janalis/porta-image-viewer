@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace Porta\ImageViewer\Tests;
 
 use PHPUnit\Framework\TestCase;
+use Porta\Plugin\Api\Capability;
+use Porta\Plugin\Runtime\PluginCapabilities;
 use Porta\Plugin\Runtime\PluginManager;
 use Porta\Plugin\Runtime\PluginSettings;
 use Porta\Tests\Support\PreservesPath;
+use Porta\Tests\Support\PumpsLoop;
 use Porta\Tests\Support\TempProject;
 use Porta\Tests\Support\TestPluginRuntime;
+use Porta\Ui\Graphics\PngDimensions;
 use Porta\Widget\CodeEditorWidget;
 use Porta\Widget\StatusBarWidget;
 use Symfony\Component\EventDispatcher\EventDispatcher;
@@ -18,16 +22,19 @@ use Symfony\Component\EventDispatcher\EventDispatcher;
 final class ImageViewerPluginTest extends TestCase
 {
     use PreservesPath;
+    use PumpsLoop;
 
     private PluginManager $manager;
     private PluginSettings $settings;
+    private PluginCapabilities $capabilities;
 
     /** @param array<string, bool|int|string> $values */
     private function activate(TempProject $project, array $values = []): void
     {
         \putenv('PATH=/nonexistent'); // no converter to discover: only the setting names one
         $this->settings = new PluginSettings($project->dir, ['image-viewer' => $values]);
-        $this->manager = new PluginManager(new EventDispatcher(), $this->settings);
+        $this->capabilities = new PluginCapabilities();
+        $this->manager = new PluginManager(new EventDispatcher(), $this->settings, capabilities: $this->capabilities);
         $this->manager->wireRuntime(TestPluginRuntime::create(new CodeEditorWidget(), new StatusBarWidget()));
         $api = $this->manager->api('image-viewer', $project->dir, $this->settings);
         $plugin = require \dirname(__DIR__).'/porta.php';
@@ -70,5 +77,25 @@ final class ImageViewerPluginTest extends TestCase
 
         $this->assertSame('image', $this->manager->previewFor($project->path('logo.svg')), 'named, not discovered');
         $this->assertNull($this->manager->previewFor($project->path('notes.txt')), 'a converter makes no picture of text');
+    }
+
+    /** Core draws the store's SVG pictures with the converter this plugin drives — the one the setting names. */
+    public function testItLendsCoreItsSvgConverter(): void
+    {
+        $project = new TempProject([]); // held: the converter runs in it
+        $this->activate($project, ['svgConverter' => \dirname(__DIR__, levels: 3).'/tests/Support/fake-rsvg']);
+        \putenv('PATH='.(string) \PORTA_TEST_PRISTINE_PATH); // the stub is a PHP script: env must find php
+        $draw = $this->capabilities->first(Capability::SvgRasterizer);
+        $this->assertInstanceOf(\Closure::class, $draw);
+
+        $answer = [];
+        $draw('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50"/>', width: 300, onPng: static function (?string $png) use (&$answer): void {
+            $answer[] = $png;
+        });
+        $this->await(static function () use (&$answer): bool {
+            return [] !== $answer;
+        }, what: 'the lent converter');
+
+        $this->assertSame([300, 150], PngDimensions::read((string) $answer[0]));
     }
 }

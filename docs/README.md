@@ -19,6 +19,9 @@ than magnifying pixels, so it stays sharp, and the status bar reports the
 document's own size (100% means 100% of the SVG). With no converter
 installed — or with **Preview SVG beside its markup** turned off — `.svg`
 opens as plain editable XML with no preview.
+The same converter draws the SVG pictures on plugin pages in the
+[plugin store](../../../docs/plugin-store.md), except a picture that links
+to anything outside itself: `rsvg-convert` draws that one, or nothing does.
 **Open as Text** (`Ctrl+Alt+X`, or the palette) reopens a viewer tab in the
 editor — an image's bytes, or an SVG or a diagram too large to preview.
 

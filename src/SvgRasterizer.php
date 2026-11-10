@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Porta\ImageViewer;
 
 use Porta\Support\SingleSlotProcess;
+use Porta\Ui\Graphics\PngDimensions;
 use Symfony\Component\Process\ExecutableFinder;
 
 /**
@@ -48,6 +49,36 @@ final readonly class SvgRasterizer
         // A document that is not SVG at all lands here, with the converter's
         // own parse error as the message.
         $this->slot->run([$binary, ...$converter->arguments($scale)], $this->rootDir, $svg, 'the SVG converter', $onPng, $onError);
+    }
+
+    /**
+     * $svg drawn $width pixels wide, or null — what this plugin lends core as
+     * {@see \Porta\Plugin\Api\Capability::SvgRasterizer}. A converter takes
+     * a scale, not a width, so the document is drawn at its own size first and
+     * once more at the scale $width needs, when that differs. Give each call a
+     * rasterizer of its own: two calls on one slot would cancel each other.
+     *
+     * @param \Closure(?string): void $onPng exactly once
+     */
+    public function atWidth(string $svg, int $width, \Closure $onPng): void
+    {
+        $failed = static function () use ($onPng): void {
+            $onPng(null);
+        };
+        $this->rasterize(
+            $svg,
+            null,
+            function (string $png) use ($svg, $width, $onPng, $failed): void {
+                $own = PngDimensions::read($png)[0] ?? 0;
+                if (0 === $own || $width === $own) {
+                    $onPng(0 === $own ? null : $png);
+
+                    return;
+                }
+                $this->rasterize($svg, $width / $own, $onPng, $failed);
+            },
+            $failed,
+        );
     }
 
     /** Stop any in-flight render (viewer teardown; idempotent). */

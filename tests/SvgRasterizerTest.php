@@ -13,6 +13,7 @@ use Porta\Tests\Support\PreservesPath;
 use Porta\Tests\Support\PumpsLoop;
 use Porta\Tests\Support\SvgConverterBinary;
 use Porta\Tests\Support\TempProject;
+use Porta\Ui\Graphics\PngDimensions;
 
 final class SvgRasterizerTest extends TestCase
 {
@@ -88,6 +89,41 @@ final class SvgRasterizerTest extends TestCase
         } finally {
             \unlink($magick);
         }
+    }
+
+    /** @return ?string the PNG atWidth() answered, once it has */
+    private function atWidth(SvgRasterizer $rasterizer, string $svg, int $width): ?string
+    {
+        $answers = [];
+        $rasterizer->atWidth($svg, $width, static function (?string $png) use (&$answers): void {
+            $answers[] = $png;
+        });
+        $this->await(static function () use (&$answers): bool {
+            return [] !== $answers;
+        }, what: 'the drawing at a width');
+        $this->pump(0.1);
+        $this->assertCount(1, $answers, 'answered exactly once');
+
+        return $answers[0];
+    }
+
+    /** Core asks for a width; the converter takes a scale: its own size first, then the scale that width needs. */
+    public function testADocumentIsDrawnAtTheWidthAsked(): void
+    {
+        $rasterizer = new SvgRasterizer(\sys_get_temp_dir(), self::stub());
+
+        $this->assertSame([512, 256], PngDimensions::read((string) $this->atWidth($rasterizer, self::SMALL_SVG, 512)));
+        $this->assertSame([100, 50], PngDimensions::read((string) $this->atWidth($rasterizer, self::SMALL_SVG, 100)), 'its own width: drawn once');
+        $this->assertNull($this->atWidth($rasterizer, '<svg>broken', 512));
+    }
+
+    public function testWhatIsNoPngIsNothing(): void
+    {
+        $bin = new TempProject();
+        $bin->write('rsvg-convert', "#!/bin/sh\ncat >/dev/null\nprintf 'not a png'\n");
+        \chmod($bin->path('rsvg-convert'), permissions: 0o755);
+
+        $this->assertNull($this->atWidth(new SvgRasterizer(\sys_get_temp_dir(), $bin->path('rsvg-convert')), self::SMALL_SVG, 512));
     }
 
     public function testAFailureSurfacesTheConvertersStderr(): void
