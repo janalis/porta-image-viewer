@@ -52,18 +52,18 @@ return new class('image-viewer') extends AbstractPlugin {
         // (claim nothing) and capped at 256 MiB.
         $api->registerSetting(
             'maxBytes',
-            'Skip images larger than (bytes)',
-            'int',
-            ImageDecoder::MAX_BYTES,
+            label: 'Skip images larger than (bytes)',
+            kind: 'int',
+            default: ImageDecoder::MAX_BYTES,
             hint: 'routing only; bitmaps over 20 MB are refused by the decoder either way',
             min: 0,
             max: 268_435_456,
             step: 1_048_576,
         );
-        $api->registerSetting('svg', 'Preview SVG beside its markup', 'bool', true);
+        $api->registerSetting('svg', label: 'Preview SVG beside its markup', kind: 'bool', default: true);
         // A CORE setting until this plugin owned it (the git-keys precedent).
         // The rasterizer resolves it per conversion, so an edit applies live.
-        $api->registerSetting('svgConverter', 'SVG converter path', hint: 'empty = discover on PATH');
+        $api->registerSetting('svgConverter', label: 'SVG converter path', hint: 'empty = discover on PATH');
         $legacy = new LegacyCoreSettings($api->projectRoot(), 'image-viewer', ['svgConverter' => 'svgConverter']);
         $api->onReady(static function () use ($api, $legacy): void {
             foreach ($legacy->adoptions() as $key => $value) {

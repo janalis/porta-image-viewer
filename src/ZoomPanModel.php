@@ -72,7 +72,7 @@ final class ZoomPanModel
 
     public function zoomIn(int $cols, int $pxRows): void
     {
-        $new = $this->step($this->effectiveScale($cols, $pxRows), 1);
+        $new = $this->step($this->effectiveScale($cols, $pxRows), dir: 1);
         if (null !== $new) {
             $this->setScale($new, $cols, $pxRows);
         }

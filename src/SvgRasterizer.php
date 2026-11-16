@@ -48,7 +48,7 @@ final readonly class SvgRasterizer
         }
         // A document that is not SVG at all lands here, with the converter's
         // own parse error as the message.
-        $this->slot->run([$binary, ...$converter->arguments($scale)], $this->rootDir, $svg, 'the SVG converter', $onPng, $onError);
+        $this->slot->run([$binary, ...$converter->arguments($scale)], $this->rootDir, $svg, label: 'the SVG converter', onSuccess: $onPng, onFailure: $onError);
     }
 
     /**
@@ -67,8 +67,8 @@ final readonly class SvgRasterizer
         };
         $this->rasterize(
             $svg,
-            null,
-            function (string $png) use ($svg, $width, $onPng, $failed): void {
+            scale: null,
+            onPng: function (string $png) use ($svg, $width, $onPng, $failed): void {
                 $own = PngDimensions::read($png)[0] ?? 0;
                 if (0 === $own || $width === $own) {
                     $onPng(0 === $own ? null : $png);
@@ -77,7 +77,7 @@ final readonly class SvgRasterizer
                 }
                 $this->rasterize($svg, $width / $own, $onPng, $failed);
             },
-            $failed,
+            onError: $failed,
         );
     }
 

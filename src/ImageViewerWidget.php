@@ -303,7 +303,6 @@ final class ImageViewerWidget extends NavigablePaneWidget
     }
 
     /** The status bar's size text ('64 × 64' in the document's own pixels), '' when nothing is shown. */
-    // @mago-expect lint:no-missing-format-argument -- mago 1.45's new rule cannot count through a spread: it flags every spread call and reports the placeholder count as the value count ("2 placeholders, 2 values given"). dimensions() returns array{0: int, 1: int}.
     public function statusInfo(): string
     {
         return null === $this->view ? '' : \sprintf('%d × %d', ...$this->view->dimensions());
@@ -381,14 +380,14 @@ final class ImageViewerWidget extends NavigablePaneWidget
         $kb = $this->getKeybindings();
         $pxRows = 2 * $this->lastRows;
         match (true) {
-            $kb->matches($data, 'image_zoom_in') => $this->zoom(1),
-            $kb->matches($data, 'image_zoom_out') => $this->zoom(-1),
-            $kb->matches($data, 'image_zoom_fit') => $this->withView(static fn (ZoomPanModel $v) => $v->fit()),
-            $kb->matches($data, 'image_zoom_actual') => $this->withView(fn (ZoomPanModel $v) => $v->actualSize($this->lastCols, $pxRows)),
-            $kb->matches($data, 'image_pan_left') => $this->pan(-2, 0, $data),
-            $kb->matches($data, 'image_pan_right') => $this->pan(2, 0, $data),
-            $kb->matches($data, 'image_pan_up') => $this->pan(0, -4, $data),
-            $kb->matches($data, 'image_pan_down') => $this->pan(0, 4, $data),
+            $kb->matches($data, action: 'image_zoom_in') => $this->zoom(1),
+            $kb->matches($data, action: 'image_zoom_out') => $this->zoom(-1),
+            $kb->matches($data, action: 'image_zoom_fit') => $this->withView(static fn (ZoomPanModel $v) => $v->fit()),
+            $kb->matches($data, action: 'image_zoom_actual') => $this->withView(fn (ZoomPanModel $v) => $v->actualSize($this->lastCols, $pxRows)),
+            $kb->matches($data, action: 'image_pan_left') => $this->pan(-2, dy: 0, data: $data),
+            $kb->matches($data, action: 'image_pan_right') => $this->pan(2, dy: 0, data: $data),
+            $kb->matches($data, action: 'image_pan_up') => $this->pan(0, -4, $data),
+            $kb->matches($data, action: 'image_pan_down') => $this->pan(0, dy: 4, data: $data),
             default => $this->tabKey($data),
         };
     }

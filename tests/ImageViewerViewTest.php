@@ -47,29 +47,29 @@ final class ImageViewerViewTest extends TestCase
     public function testEachKeyLeavesTheViewItsModelCallWould(): void
     {
         $keys = [
-            "\x1b[D" => static fn (ZoomPanModel $m) => $m->panBy(-2, 0, 40, 12),
-            "\x1b[C" => static fn (ZoomPanModel $m) => $m->panBy(2, 0, 40, 12),
-            "\x1b[A" => static fn (ZoomPanModel $m) => $m->panBy(0, -4, 40, 12),
-            "\x1b[B" => static fn (ZoomPanModel $m) => $m->panBy(0, 4, 40, 12),
-            "\x1b[1;2D" => static fn (ZoomPanModel $m) => $m->panBy(-10, 0, 40, 12),
-            "\x1b[1;2C" => static fn (ZoomPanModel $m) => $m->panBy(10, 0, 40, 12),
-            "\x1b[1;2A" => static fn (ZoomPanModel $m) => $m->panBy(0, -20, 40, 12),
-            "\x1b[1;2B" => static fn (ZoomPanModel $m) => $m->panBy(0, 20, 40, 12),
-            '=' => static fn (ZoomPanModel $m) => $m->zoomIn(40, 12),
-            '+' => static fn (ZoomPanModel $m) => $m->zoomIn(40, 12),
-            '-' => static fn (ZoomPanModel $m) => $m->zoomOut(40, 12),
+            "\x1b[D" => static fn (ZoomPanModel $m) => $m->panBy(-2, dyHalfRows: 0, cols: 40, pxRows: 12),
+            "\x1b[C" => static fn (ZoomPanModel $m) => $m->panBy(2, dyHalfRows: 0, cols: 40, pxRows: 12),
+            "\x1b[A" => static fn (ZoomPanModel $m) => $m->panBy(0, -4, cols: 40, pxRows: 12),
+            "\x1b[B" => static fn (ZoomPanModel $m) => $m->panBy(0, dyHalfRows: 4, cols: 40, pxRows: 12),
+            "\x1b[1;2D" => static fn (ZoomPanModel $m) => $m->panBy(-10, dyHalfRows: 0, cols: 40, pxRows: 12),
+            "\x1b[1;2C" => static fn (ZoomPanModel $m) => $m->panBy(10, dyHalfRows: 0, cols: 40, pxRows: 12),
+            "\x1b[1;2A" => static fn (ZoomPanModel $m) => $m->panBy(0, -20, cols: 40, pxRows: 12),
+            "\x1b[1;2B" => static fn (ZoomPanModel $m) => $m->panBy(0, dyHalfRows: 20, cols: 40, pxRows: 12),
+            '=' => static fn (ZoomPanModel $m) => $m->zoomIn(40, pxRows: 12),
+            '+' => static fn (ZoomPanModel $m) => $m->zoomIn(40, pxRows: 12),
+            '-' => static fn (ZoomPanModel $m) => $m->zoomOut(40, pxRows: 12),
             '0' => static fn (ZoomPanModel $m) => $m->fit(),
             'f' => static fn (ZoomPanModel $m) => $m->fit(),
         ];
-        $widget = $this->bitmapWidget(200, 100);
-        $view = Probe::get($widget, 'view');
+        $widget = $this->bitmapWidget(200, height: 100);
+        $view = Probe::get($widget, property: 'view');
         $this->assertInstanceOf(ZoomPanModel::class, $view);
 
         foreach ($keys as $key => $expect) {
             $view->fit();
-            $view->actualSize(40, 12);
+            $view->actualSize(40, pxRows: 12);
             $expected = new ZoomPanModel(200, 100);
-            $expected->actualSize(40, 12);
+            $expected->actualSize(40, pxRows: 12);
             $expect($expected);
 
             $widget->handleInput((string) $key); // '0' is an int key
@@ -79,7 +79,7 @@ final class ImageViewerViewTest extends TestCase
 
         $view->fit();
         $expected = new ZoomPanModel(200, 100);
-        $expected->actualSize(40, 12);
+        $expected->actualSize(40, pxRows: 12);
         $widget->handleInput('1');
         $this->assertSame($expected->stateKey(), $view->stateKey(), '1 from the fit');
     }
@@ -92,27 +92,30 @@ final class ImageViewerViewTest extends TestCase
     public function testEachPointerGestureLeavesTheViewItsModelCallWould(): void
     {
         $gestures = [
-            'zoomAt' => [static fn (ImageViewerWidget $w) => $w->zoomAt(1, 9, 3), static fn (ZoomPanModel $m) => $m->zoomAt(1, 9, 7, 40, 12)],
-            'magnifyAt' => [static fn (ImageViewerWidget $w) => $w->magnifyAt(2.0, 9, 3), static fn (ZoomPanModel $m) => $m->magnifyAt(2.0, 9, 7, 40, 12)],
-            'scrollBy' => [static fn (ImageViewerWidget $w) => $w->scrollBy(10_000, 10_000), static fn (ZoomPanModel $m) => $m->panBy(10_000, 10_000, 40, 12)],
+            'zoomAt' => [static fn (ImageViewerWidget $w) => $w->zoomAt(1, relCol: 9, relRow: 3), static fn (ZoomPanModel $m) => $m->zoomAt(1, anchorCol: 9, anchorHalfRow: 7, cols: 40, pxRows: 12)],
+            'magnifyAt' => [
+                static fn (ImageViewerWidget $w) => $w->magnifyAt(2.0, relCol: 9, relRow: 3),
+                static fn (ZoomPanModel $m) => $m->magnifyAt(2.0, anchorCol: 9, anchorHalfRow: 7, cols: 40, pxRows: 12),
+            ],
+            'scrollBy' => [static fn (ImageViewerWidget $w) => $w->scrollBy(10_000, dyHalfRows: 10_000), static fn (ZoomPanModel $m) => $m->panBy(10_000, dyHalfRows: 10_000, cols: 40, pxRows: 12)],
             'shift+down, far' => [
                 static function (ImageViewerWidget $w): void {
                     foreach (\range(1, end: 5) as $ignored) {
                         $w->handleInput("\x1b[1;2B");
                     }
                 },
-                static fn (ZoomPanModel $m) => $m->panBy(0, 100, 40, 12),
+                static fn (ZoomPanModel $m) => $m->panBy(0, dyHalfRows: 100, cols: 40, pxRows: 12),
             ],
         ];
-        $widget = $this->bitmapWidget(200, 100);
-        $view = Probe::get($widget, 'view');
+        $widget = $this->bitmapWidget(200, height: 100);
+        $view = Probe::get($widget, property: 'view');
         $this->assertInstanceOf(ZoomPanModel::class, $view);
 
         foreach ($gestures as $what => [$gesture, $expect]) {
             $view->fit();
-            $view->actualSize(40, 12);
+            $view->actualSize(40, pxRows: 12);
             $expected = new ZoomPanModel(200, 100);
-            $expected->actualSize(40, 12);
+            $expected->actualSize(40, pxRows: 12);
             $expect($expected);
             $before = $widget->getRenderRevision();
 
@@ -128,15 +131,15 @@ final class ImageViewerViewTest extends TestCase
     {
         [$graphics] = PixelGraphics::answered(cellWidth: 8);
         $widget = new ImageViewerWidget($this->rasterizer->rasterize(...), new Translator('en'), $this->scheduler, graphics: $graphics);
-        $widget->show('/p/a.png', self::bitmap(640, 320));
+        $widget->show('/p/a.png', self::bitmap(640, height: 320));
         $widget->render(new RenderContext(40, 6));
 
         $widget->handleInput('1');
 
         $expected = new ZoomPanModel(640, 320);
         $expected->setPixelsPerColumn(8 / $graphics->pixelRatio());
-        $expected->actualSize(40, 12);
-        $view = Probe::get($widget, 'view');
+        $expected->actualSize(40, pxRows: 12);
+        $view = Probe::get($widget, property: 'view');
         $this->assertInstanceOf(ZoomPanModel::class, $view);
         $this->assertSame($expected->stateKey(), $view->stateKey());
     }
@@ -144,7 +147,7 @@ final class ImageViewerViewTest extends TestCase
     /** The tab keys reach the IDE through the handler, and with none set they do nothing. */
     public function testTheTabKeysNeedNoHandler(): void
     {
-        $widget = $this->bitmapWidget(20, 10);
+        $widget = $this->bitmapWidget(20, height: 10);
         $keys = ["\x1b[1;5C", "\x1b[1;5D", "\x1b[1;5S", "\x1bw", "\x1b\x13"];
         foreach ($keys as $key) {
             $widget->handleInput($key);
@@ -170,28 +173,28 @@ final class ImageViewerViewTest extends TestCase
             return $widget->getRenderRevision() > $before;
         };
 
-        $this->assertTrue($repaints(static fn () => $widget->show('/p/a.png', self::bitmap(4, 4))), 'a bitmap');
+        $this->assertTrue($repaints(static fn () => $widget->show('/p/a.png', self::bitmap(4, height: 4))), 'a bitmap');
         $this->assertTrue($repaints($widget->clear(...)), 'a clear');
-        $this->assertTrue($repaints(static fn () => $widget->show('/p/a.svg', '<svg id="a"/>')), 'a document, before any answer');
-        $this->assertTrue($repaints(fn () => ($this->rasterizer->pendingPng)(PngFixture::bytes(10, 10))), 'its picture');
-        $widget->show('/p/a.svg', '<svg id="b"/>');
+        $this->assertTrue($repaints(static fn () => $widget->show('/p/a.svg', payload: '<svg id="a"/>')), 'a document, before any answer');
+        $this->assertTrue($repaints(fn () => ($this->rasterizer->pendingPng)(PngFixture::bytes(10, height: 10))), 'its picture');
+        $widget->show('/p/a.svg', payload: '<svg id="b"/>');
         $this->assertTrue($repaints(fn () => ($this->rasterizer->pendingError)('broken')), 'its failure');
-        $widget->show('/p/a.svg', '<svg id="c"/>');
+        $widget->show('/p/a.svg', payload: '<svg id="c"/>');
         $this->assertTrue($repaints(fn () => ($this->rasterizer->pendingPng)('not a picture')), 'an answer that is no picture');
     }
 
     /** Another tab's document starts from nothing; the same tab re-shown keeps its picture until the new one lands. */
     public function testAnotherTabsDocumentNeverPaintsOverThePreviousPicture(): void
     {
-        $this->rasterizer->nextPng = PngFixture::bytes(100, 50);
+        $this->rasterizer->nextPng = PngFixture::bytes(100, height: 50);
         $widget = new ImageViewerWidget($this->rasterizer->rasterize(...), new Translator('en'), $this->scheduler);
-        $widget->show('/p/a.svg', '<svg id="a"/>');
+        $widget->show('/p/a.svg', payload: '<svg id="a"/>');
         $this->rasterizer->deferred = true;
 
-        $widget->show('/p/a.svg', '<svg id="a2"/>');
+        $widget->show('/p/a.svg', payload: '<svg id="a2"/>');
         $this->assertSame('100 × 50', $widget->statusInfo(), 'the same tab keeps its picture meanwhile');
 
-        $widget->show('/p/b.svg', '<svg id="b"/>');
+        $widget->show('/p/b.svg', payload: '<svg id="b"/>');
         $this->assertSame('', $widget->statusInfo(), 'another tab does not');
         $this->assertSame('◌ rendering…', \trim(AnsiUtils::stripAnsiCodes($widget->render(new RenderContext(30, 5))[2])));
     }
@@ -201,7 +204,7 @@ final class ImageViewerViewTest extends TestCase
     {
         $this->rasterizer->deferred = true;
         $widget = new ImageViewerWidget($this->rasterizer->rasterize(...), new Translator('en'), $this->scheduler);
-        $widget->show('/p/a.svg', '<svg/>');
+        $widget->show('/p/a.svg', payload: '<svg/>');
 
         $rows = \array_map(AnsiUtils::stripAnsiCodes(...), $widget->render(new RenderContext(31, 4)));
         $this->assertSame([\str_repeat(' ', times: 31), \str_repeat(' ', times: 31), \str_repeat(' ', times: 9).'◌ rendering…'.\str_repeat(' ', times: 10), \str_repeat(' ', times: 31)], $rows);
@@ -216,7 +219,7 @@ final class ImageViewerViewTest extends TestCase
     {
         $this->rasterizer->deferred = true;
         $widget = new ImageViewerWidget($this->rasterizer->rasterize(...), new Translator('en'), $this->scheduler);
-        $widget->show('/p/a.svg', '<svg/>');
+        $widget->show('/p/a.svg', payload: '<svg/>');
 
         $widget->clear();
 
@@ -229,7 +232,7 @@ final class ImageViewerViewTest extends TestCase
         $styles = Styles::dark();
         $this->rasterizer->deferred = true;
         $widget = new ImageViewerWidget($this->rasterizer->rasterize(...), new Translator('en'), $this->scheduler);
-        $widget->show('/p/a.svg', '<svg/>');
+        $widget->show('/p/a.svg', payload: '<svg/>');
         $this->assertStringContainsString($styles->of(Role::Dim)->apply('◌ rendering…'), $widget->render(new RenderContext(30, 5))[2]);
 
         ($this->rasterizer->pendingError)('broken');
@@ -239,11 +242,11 @@ final class ImageViewerViewTest extends TestCase
     /** A converter error over a picture takes the top row, and only it. */
     public function testTheBannerIsTheTopRow(): void
     {
-        $this->rasterizer->nextPng = PngFixture::bytes(100, 50);
+        $this->rasterizer->nextPng = PngFixture::bytes(100, height: 50);
         $widget = new ImageViewerWidget($this->rasterizer->rasterize(...), new Translator('en'), $this->scheduler);
-        $widget->show('/p/a.svg', '<svg id="a"/>');
+        $widget->show('/p/a.svg', payload: '<svg id="a"/>');
         $this->rasterizer->deferred = true;
-        $widget->show('/p/a.svg', '<svg id="b"/>');
+        $widget->show('/p/a.svg', payload: '<svg id="b"/>');
         ($this->rasterizer->pendingError)("broken\nat line 2");
 
         $rows = \array_map(AnsiUtils::stripAnsiCodes(...), $widget->render(new RenderContext(30, 5)));
@@ -256,7 +259,7 @@ final class ImageViewerViewTest extends TestCase
     /** A pane one column or one row big still shows the picture; three by three is enough to frame it. */
     public function testTheSmallestPanesStillPaint(): void
     {
-        $widget = $this->bitmapWidget(4, 4);
+        $widget = $this->bitmapWidget(4, height: 4);
 
         $this->assertCount(1, $widget->render(new RenderContext(1, 1)));
         $this->assertCount(1, $widget->render(new RenderContext(5, 1)));
@@ -272,7 +275,7 @@ final class ImageViewerViewTest extends TestCase
     /** Resized to a pane whose two numbers spell the same digits, the memo is not served. */
     public function testTheMemoTellsColumnsFromRows(): void
     {
-        $widget = $this->bitmapWidget(4, 4);
+        $widget = $this->bitmapWidget(4, height: 4);
         $widget->render(new RenderContext(12, 3));
 
         $this->assertCount(23, $widget->render(new RenderContext(1, 23)));
@@ -282,10 +285,10 @@ final class ImageViewerViewTest extends TestCase
     /** A bitmap shown after a document has no document behind it to re-render. */
     public function testABitmapAfterADocumentAsksTheConverterForNothing(): void
     {
-        $this->rasterizer->nextPng = PngFixture::bytes(100, 50);
+        $this->rasterizer->nextPng = PngFixture::bytes(100, height: 50);
         $widget = new ImageViewerWidget($this->rasterizer->rasterize(...), new Translator('en'), $this->scheduler);
-        $widget->show('/p/a.svg', '<svg/>');
-        $widget->show('/p/a.png', self::bitmap(100, 50));
+        $widget->show('/p/a.svg', payload: '<svg/>');
+        $widget->show('/p/a.png', self::bitmap(100, height: 50));
         $widget->render(new RenderContext(50, 13));
         $widget->handleInput('1');
         $widget->handleInput('='); // 200%: a document would want a sharper raster here
@@ -310,22 +313,22 @@ final class ImageViewerViewTest extends TestCase
 
         $lines = $widget->render(new RenderContext(8, 2));
 
-        $view = Probe::get($widget, 'view');
+        $view = Probe::get($widget, property: 'view');
         $this->assertInstanceOf(ZoomPanModel::class, $view);
-        $this->assertSame(HalfBlockRasterizer::render(new ScaledSource()->forScale($image, 4 / 64), $view, 8, 2), $lines);
+        $this->assertSame(HalfBlockRasterizer::render(new ScaledSource()->forScale($image, 4 / 64), $view, cols: 8, rows: 2), $lines);
     }
 
     /** A sharper raster is sampled at its own density, and once asked for is not asked for again. */
     public function testARefinedRasterIsDrawnAtItsDensityAndAskedForOnce(): void
     {
-        $this->rasterizer->nextPng = PngFixture::bytes(100, 50);
+        $this->rasterizer->nextPng = PngFixture::bytes(100, height: 50);
         $widget = new ImageViewerWidget($this->rasterizer->rasterize(...), new Translator('en'), $this->scheduler);
-        $widget->show('/p/a.svg', '<svg viewBox="0 0 100 50"/>');
+        $widget->show('/p/a.svg', payload: '<svg viewBox="0 0 100 50"/>');
         $context = new RenderContext(50, 13);
         $widget->render($context);
         $widget->handleInput('1');
         $widget->handleInput('='); // 200%
-        $refined = PngFixture::bytes(200, 100, [200, 40, 40], [40, 200, 40]);
+        $refined = PngFixture::bytes(200, height: 100, rgb: [200, 40, 40], right: [40, 200, 40]);
         $this->rasterizer->nextPng = $refined;
         $this->settle();
 
@@ -333,19 +336,19 @@ final class ImageViewerViewTest extends TestCase
         $this->settle();
 
         $this->assertSame([null, 2.0], $this->rasterizer->scales);
-        $view = Probe::get($widget, 'view');
+        $view = Probe::get($widget, property: 'view');
         $this->assertInstanceOf(ZoomPanModel::class, $view);
         $decoded = new ImageDecoder()->decodeBytes($refined);
         $this->assertInstanceOf(ImageData::class, $decoded);
-        $this->assertSame(HalfBlockRasterizer::render(new SampleSource($decoded, 2.0), $view, 50, 13), $lines);
+        $this->assertSame(HalfBlockRasterizer::render(new SampleSource($decoded, 2.0), $view, cols: 50, rows: 13), $lines);
     }
 
     /** A small document fitted into a tall pane wants a raster at the fit's own scale: twice, from the height. */
     public function testTheFitAsksForTheRasterItsHeightWants(): void
     {
-        $this->rasterizer->nextPng = PngFixture::bytes(10, 10);
+        $this->rasterizer->nextPng = PngFixture::bytes(10, height: 10);
         $widget = new ImageViewerWidget($this->rasterizer->rasterize(...), new Translator('en'), $this->scheduler);
-        $widget->show('/p/a.svg', '<svg/>');
+        $widget->show('/p/a.svg', payload: '<svg/>');
         $widget->render(new RenderContext(80, 10)); // fit = min(80 / 10, 20 / 10)
         $this->settle();
 
@@ -359,15 +362,15 @@ final class ImageViewerViewTest extends TestCase
      */
     public function testAClickMapsThroughTheLetterboxAndTheFit(): void
     {
-        $this->rasterizer->nextPng = PngFixture::bytes(20, 20);
+        $this->rasterizer->nextPng = PngFixture::bytes(20, height: 20);
         $widget = new ImageViewerWidget($this->rasterizer->rasterize(...), new Translator('en'), $this->scheduler);
-        $widget->show('/p/a.svg', "<svg xmlns=\"http://www.w3.org/2000/svg\">\n<rect x=\"5\" y=\"0\" width=\"1\" height=\"1\"/>\n</svg>");
+        $widget->show('/p/a.svg', payload: "<svg xmlns=\"http://www.w3.org/2000/svg\">\n<rect x=\"5\" y=\"0\" width=\"1\" height=\"1\"/>\n</svg>");
         $widget->render(new RenderContext(40, 5));
-        $widget->selectAt(0, 17); // no handler: nothing to tell
+        $widget->selectAt(0, relCol: 17); // no handler: nothing to tell
 
         $handler = new RecordingViewerTabHandler();
         $widget->setHandler($handler);
-        $widget->selectAt(0, 17);
+        $widget->selectAt(0, relCol: 17);
 
         $this->assertSame(['reveal:1:0'], $handler->events);
     }
@@ -375,15 +378,15 @@ final class ImageViewerViewTest extends TestCase
     /** Letterboxed above and below instead: a 0.5 fit from the width, five half-rows over it — row 3 of column 2 is document (5, 4). */
     public function testAClickMapsThroughALetterboxAboveThePicture(): void
     {
-        $this->rasterizer->nextPng = PngFixture::bytes(20, 20);
+        $this->rasterizer->nextPng = PngFixture::bytes(20, height: 20);
         $widget = new ImageViewerWidget($this->rasterizer->rasterize(...), new Translator('en'), $this->scheduler);
         $handler = new RecordingViewerTabHandler();
         $widget->setHandler($handler);
-        $widget->show('/p/a.svg', "<svg xmlns=\"http://www.w3.org/2000/svg\">\n<rect x=\"5\" y=\"4\" width=\"1\" height=\"1\"/>\n</svg>");
+        $widget->show('/p/a.svg', payload: "<svg xmlns=\"http://www.w3.org/2000/svg\">\n<rect x=\"5\" y=\"4\" width=\"1\" height=\"1\"/>\n</svg>");
         $widget->render(new RenderContext(10, 10));
         $handler->events = [];
 
-        $widget->selectAt(3, 2);
+        $widget->selectAt(3, relCol: 2);
 
         $this->assertSame(['reveal:1:0'], $handler->events);
     }
@@ -393,7 +396,7 @@ final class ImageViewerViewTest extends TestCase
     {
         [$graphics] = PixelGraphics::answered(cellWidth: 8);
         $widget = new ImageViewerWidget($this->rasterizer->rasterize(...), new Translator('en'), $this->scheduler, graphics: $graphics);
-        $widget->show('/p/a.png', self::bitmap(64, 8));
+        $widget->show('/p/a.png', self::bitmap(64, height: 8));
 
         $this->assertCount(4, $widget->render(new RenderContext(8, 4)));
     }

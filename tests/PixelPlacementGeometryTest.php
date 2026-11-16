@@ -78,7 +78,7 @@ final class PixelPlacementGeometryTest extends TestCase
                 '27 27 37 37 47 47 57 57 67 67 77 77',
                 '27 27 37 37 47 47 57 57 67 67 77 77',
             ],
-            self::cut(null, 1.5),
+            self::cut(null, density: 1.5),
         );
     }
 
@@ -93,11 +93,11 @@ final class PixelPlacementGeometryTest extends TestCase
         [$graphics, $terminal] = PixelGraphics::answered(cellWidth: 8, cellHeight: 16);
         $pixels = new PixelPlacement($graphics, static function (): void {});
 
-        $lines = $pixels->render(PixelPlacementTest::halves(40, 20), 1.0, new ZoomPanModel(40, 20), 40, 5);
+        $lines = $pixels->render(PixelPlacementTest::halves(40, height: 20), ratio: 1.0, view: new ZoomPanModel(40, 20), cols: 40, rows: 5);
 
         $blank = \str_repeat(' ', times: 10);
         $this->assertSame(
-            \array_map(static fn (int $row): string => $blank.KittyPlaceholders::row(1000, $row, 0, 20).$blank, \range(0, end: 4)),
+            \array_map(static fn (int $row): string => $blank.KittyPlaceholders::row(1000, $row, firstColumn: 0, count: 20).$blank, \range(0, end: 4)),
             $lines,
         );
         $this->assertStringContainsString('c=20,r=5,', $terminal->getOutput(), 'an even span of half-rows covers no extra row');
@@ -109,8 +109,8 @@ final class PixelPlacementGeometryTest extends TestCase
     /** Past the budget each side is floored to it; and a single pixel's cell still sends a pixel. */
     public function testTheSentSizeIsTheBudgetFloored(): void
     {
-        $this->assertSame([968, 1032], self::sentSize(100, 200, 200, 30, 20), '3000 × 3200 cell pixels, scaled by √(10⁶ / 9.6 × 10⁶)');
-        $this->assertSame([1, 1], self::sentSize(1, 1, 1, 1, 1));
+        $this->assertSame([968, 1032], self::sentSize(100, cellHeight: 200, side: 200, cols: 30, rows: 20), '3000 × 3200 cell pixels, scaled by √(10⁶ / 9.6 × 10⁶)');
+        $this->assertSame([1, 1], self::sentSize(1, cellHeight: 1, side: 1, cols: 1, rows: 1));
     }
 
     /** A placement as wide, or as tall, as the protocol can address is still placed. */
@@ -120,8 +120,8 @@ final class PixelPlacementGeometryTest extends TestCase
         [$graphics] = PixelGraphics::answered(cellWidth: 1, cellHeight: 1);
         $pixels = new PixelPlacement($graphics, static function (): void {});
 
-        $this->assertCount(10, (array) $pixels->render(PixelPlacementTest::halves($most, 20), 1.0, new ZoomPanModel($most, 20), $most, 10));
-        $this->assertCount($most, (array) $pixels->render(PixelPlacementTest::halves(10, 2 * $most), 1.0, new ZoomPanModel(10, 2 * $most), 10, $most));
+        $this->assertCount(10, (array) $pixels->render(PixelPlacementTest::halves($most, height: 20), ratio: 1.0, view: new ZoomPanModel($most, 20), cols: $most, rows: 10));
+        $this->assertCount($most, (array) $pixels->render(PixelPlacementTest::halves(10, 2 * $most), ratio: 1.0, view: new ZoomPanModel(10, 2 * $most), cols: 10, rows: $most));
     }
 
     /** @return list<string> the picture sent for the panned re-render, a row of raster coordinates per pixel row */
@@ -139,7 +139,7 @@ final class PixelPlacementGeometryTest extends TestCase
         $view = new ZoomPanModel(6, 6);
         $view->zoomIn(cols: 4, pxRows: 4); // the fit's 2/3 → 1:1, centred: panned to (1, 1)
 
-        $pixels->render(new ImageData($raster, $side, $side, 0), $density, $view, 4, 2, $outline);
+        $pixels->render(new ImageData($raster, $side, $side, 0), $density, $view, cols: 4, rows: 2, outline: $outline);
 
         [$image] = PixelGraphics::sentImages($terminal);
         $rows = [];
@@ -163,7 +163,7 @@ final class PixelPlacementGeometryTest extends TestCase
     private static function sentSize(int $cellWidth, int $cellHeight, int $side, int $cols, int $rows): array
     {
         [$graphics, $terminal] = PixelGraphics::answered(cellWidth: $cellWidth, cellHeight: $cellHeight);
-        new PixelPlacement($graphics, static function (): void {})->render(PixelPlacementTest::halves($side, $side), 1.0, new ZoomPanModel($side, $side), $cols, $rows);
+        new PixelPlacement($graphics, static function (): void {})->render(PixelPlacementTest::halves($side, $side), ratio: 1.0, view: new ZoomPanModel($side, $side), cols: $cols, rows: $rows);
         [$image] = PixelGraphics::sentImages($terminal);
 
         return [\imagesx($image), \imagesy($image)];

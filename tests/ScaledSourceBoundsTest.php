@@ -22,16 +22,16 @@ final class ScaledSourceBoundsTest extends TestCase
      */
     public function testALevelIsHalvedOnlyWhileBothAxesHoldFourTargets(): void
     {
-        $this->assertSame([500], self::levelsFor(1000, 1000), 'exactly four times');
-        $this->assertSame([], self::levelsFor(1000, 1002), 'the height two pixels short of four 251s');
-        $this->assertSame([], self::levelsFor(1002, 1000), 'the width two pixels short');
+        $this->assertSame([500], self::levelsFor(1000, height: 1000), 'exactly four times');
+        $this->assertSame([], self::levelsFor(1000, height: 1002), 'the height two pixels short of four 251s');
+        $this->assertSame([], self::levelsFor(1002, height: 1000), 'the width two pixels short');
     }
 
     /** The copy is the picture's size at the scale, to the nearest pixel. */
     public function testTheCopyIsRoundedToTheNearestPixel(): void
     {
         $size = static function (int $width, int $height): array {
-            $copy = new ScaledSource()->forScale(self::blank($width, $height), 0.1);
+            $copy = new ScaledSource()->forScale(self::blank($width, $height), scale: 0.1);
 
             return [$copy->image->width, $copy->image->height];
         };
@@ -48,7 +48,7 @@ final class ScaledSourceBoundsTest extends TestCase
         \imagesavealpha($gd, enable: true);
         \imagefill($gd, x: 0, y: 0, color: (int) \imagecolorallocatealpha($gd, red: 255, green: 255, blue: 255, alpha: 127));
 
-        $copy = new ScaledSource()->forScale(new ImageData($gd, 8, 8, 0), 0.5);
+        $copy = new ScaledSource()->forScale(new ImageData($gd, 8, 8, 0), scale: 0.5);
 
         $this->assertSame(127, (\imagecolorat($copy->image->gd, x: 1, y: 1) >> 24) & 0x7F);
     }
@@ -57,8 +57,8 @@ final class ScaledSourceBoundsTest extends TestCase
     private static function levelsFor(int $width, int $height): array
     {
         $scaled = new ScaledSource();
-        $scaled->forScale(self::blank($width, $height), 0.25);
-        $levels = Probe::get($scaled, 'levels');
+        $scaled->forScale(self::blank($width, $height), scale: 0.25);
+        $levels = Probe::get($scaled, property: 'levels');
         self::assertIsArray($levels);
 
         return \array_map(static fn (ImageData $level): int => $level->width, $levels);

@@ -37,17 +37,17 @@ final class SvgGeometry
      */
     private static function textBox(\DOMElement $el): array
     {
-        $size = self::length(self::property($el, 'font-size', '16'));
+        $size = self::length(self::property($el, name: 'font-size', fallback: '16'));
         $x = self::length($el->getAttribute('x')) + self::offset($el->getAttribute('dx'), $size);
         $y = self::length($el->getAttribute('y')) + self::offset($el->getAttribute('dy'), $size);
         $width = \mb_strlen(\trim($el->textContent)) * $size * 0.6;
         $left = $x
-        - match (self::property($el, 'text-anchor', 'start')) {
+        - match (self::property($el, name: 'text-anchor', fallback: 'start')) {
             'middle' => $width / 2,
             'end' => $width,
             default => 0.0,
         };
-        $baseline = self::property($el, 'dominant-baseline', self::property($el, 'alignment-baseline', 'auto'));
+        $baseline = self::property($el, name: 'dominant-baseline', fallback: self::property($el, name: 'alignment-baseline', fallback: 'auto'));
         $top = $y
         - match ($baseline) {
             'central', 'middle' => $size * 0.625,

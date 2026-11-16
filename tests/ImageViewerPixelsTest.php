@@ -42,7 +42,7 @@ final class ImageViewerPixelsTest extends TestCase
     {
         [$graphics, $terminal] = PixelGraphics::answered(cellWidth: 8);
         $widget = $this->widget($graphics);
-        $widget->show('/p/a.png', self::bitmap(64, 8));
+        $widget->show('/p/a.png', self::bitmap(64, height: 8));
 
         $lines = \implode('', $widget->render(new RenderContext(8, 2)));
 
@@ -59,7 +59,7 @@ final class ImageViewerPixelsTest extends TestCase
         $widget = $this->widget($graphics);
         $tabs = new RecordingViewerTabHandler();
         $widget->setHandler($tabs);
-        $widget->show('/p/a.png', self::bitmap(64, 8));
+        $widget->show('/p/a.png', self::bitmap(64, height: 8));
         $this->assertStringContainsString('▀', \implode('', $widget->render(new RenderContext(8, 2))));
         $this->assertSame('Fit (13%)', $widget->zoomLabel());
         $pings = \count($tabs->events);
@@ -74,9 +74,9 @@ final class ImageViewerPixelsTest extends TestCase
     public function testAVectorIsRerenderedAtTheScreensPixels(): void
     {
         [$graphics] = PixelGraphics::answered(cellWidth: 8);
-        $this->rasterizer->nextPng = PngFixture::bytes(100, 50);
+        $this->rasterizer->nextPng = PngFixture::bytes(100, height: 50);
         $widget = $this->widget($graphics);
-        $widget->show('/p/a.svg', '<svg viewBox="0 0 100 50"/>');
+        $widget->show('/p/a.svg', payload: '<svg viewBox="0 0 100 50"/>');
 
         $widget->render(new RenderContext(50, 13)); // fit 0.5 of a column per pixel
         $this->scheduler->fire();
@@ -95,7 +95,7 @@ final class ImageViewerPixelsTest extends TestCase
         $widget = $this->widget($graphics);
         $tabs = new RecordingViewerTabHandler();
         $widget->setHandler($tabs);
-        $widget->show('/p/a.png', self::bitmap(64, 8));
+        $widget->show('/p/a.png', self::bitmap(64, height: 8));
         $widget->render(new RenderContext(8, 2));
         $this->assertSame('Fit (200%)', $widget->zoomLabel(), 'counted in device pixels: 8 columns of 16 for 64 pixels');
 
@@ -111,9 +111,9 @@ final class ImageViewerPixelsTest extends TestCase
     {
         [$graphics] = PixelGraphics::answered(cellWidth: 16, cellHeight: 34);
         $graphics->setPixelRatio(2.0);
-        $this->rasterizer->nextPng = PngFixture::bytes(100, 50);
+        $this->rasterizer->nextPng = PngFixture::bytes(100, height: 50);
         $widget = $this->widget($graphics);
-        $widget->show('/p/a.svg', '<svg viewBox="0 0 100 50"/>');
+        $widget->show('/p/a.svg', payload: '<svg viewBox="0 0 100 50"/>');
 
         $widget->render(new RenderContext(50, 13)); // fit: half a column per pixel
         $this->scheduler->fire();
@@ -126,7 +126,7 @@ final class ImageViewerPixelsTest extends TestCase
     {
         [$graphics, $terminal] = PixelGraphics::answered();
         $widget = $this->widget($graphics);
-        $widget->show('/p/a.png', self::bitmap(64, 8));
+        $widget->show('/p/a.png', self::bitmap(64, height: 8));
         $widget->render(new RenderContext(8, 2));
         $terminal->clearOutput();
 

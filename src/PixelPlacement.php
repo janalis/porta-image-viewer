@@ -154,7 +154,7 @@ final class PixelPlacement
         for ($row = 0; $row < $rows; ++$row) {
             $placementRow = $row - $firstRow;
             $inside = $placementRow >= 0 && $placementRow < $placedRows;
-            $lines[] = $inside ? $before.KittyPlaceholders::row($id, $placementRow, 0, $rect['outCols']).$after : $blank;
+            $lines[] = $inside ? $before.KittyPlaceholders::row($id, $placementRow, firstColumn: 0, count: $rect['outCols']).$after : $blank;
         }
 
         return $lines;

@@ -22,19 +22,19 @@ final class ZoomPanModelGeometryTest extends TestCase
     public function testAZoomKeepsTheMiddleOfWhatWasShown(): void
     {
         $view = new ZoomPanModel(100, 60);
-        $view->actualSize(40, 20);
+        $view->actualSize(40, pxRows: 20);
         $this->assertSame('1:30:20', $view->stateKey());
-        $view->zoomIn(40, 20);
+        $view->zoomIn(40, pxRows: 20);
         $this->assertSame('2:40:25', $view->stateKey());
-        $view->panBy(9, 9, 40, 20);
+        $view->panBy(9, dyHalfRows: 9, cols: 40, pxRows: 20);
         $view->fit();
-        $view->actualSize(40, 20);
+        $view->actualSize(40, pxRows: 20);
         $this->assertSame('1:30:20', $view->stateKey(), 'a fit forgets the pan: 1:1 after it is the middle again');
 
         $odd = new ZoomPanModel(100, 60);
-        $odd->actualSize(41, 21); // 50 − 20.5 and 30 − 10.5, both rounded up
+        $odd->actualSize(41, pxRows: 21); // 50 − 20.5 and 30 − 10.5, both rounded up
         $this->assertSame('1:30:20', $odd->stateKey());
-        $odd->zoomIn(41, 21); // 50.5 − 10.25 and 30.5 − 5.25, both rounded down
+        $odd->zoomIn(41, pxRows: 21); // 50.5 − 10.25 and 30.5 − 5.25, both rounded down
         $this->assertSame('2:40:25', $odd->stateKey());
     }
 
@@ -42,12 +42,12 @@ final class ZoomPanModelGeometryTest extends TestCase
     public function testAPanRoundsItsPixelsToTheNearest(): void
     {
         $view = new ZoomPanModel(100, 60);
-        $view->actualSize(40, 20);
-        $view->zoomIn(40, 20);
+        $view->actualSize(40, pxRows: 20);
+        $view->zoomIn(40, pxRows: 20);
 
-        $view->panBy(3, 3, 40, 20);
+        $view->panBy(3, dyHalfRows: 3, cols: 40, pxRows: 20);
         $this->assertSame('2:42:27', $view->stateKey());
-        $view->panBy(-3, -3, 40, 20);
+        $view->panBy(-3, -3, cols: 40, pxRows: 20);
         $this->assertSame('2:40:25', $view->stateKey());
     }
 
@@ -55,13 +55,13 @@ final class ZoomPanModelGeometryTest extends TestCase
     public function testAPanAtTheTopZoomMovesAPixelEitherWay(): void
     {
         $view = self::at800(40);
-        $start = $view->visibleRect(40, 20);
+        $start = $view->visibleRect(40, pxRows: 20);
 
-        $view->panBy(1, 1, 40, 20);
-        $this->assertSame([$start['srcX'] + 1, $start['srcY'] + 1], self::origin($view, 40));
-        $view->panBy(-1, -1, 40, 20);
-        $view->panBy(-1, -1, 40, 20);
-        $this->assertSame([$start['srcX'] - 1, $start['srcY'] - 1], self::origin($view, 40));
+        $view->panBy(1, dyHalfRows: 1, cols: 40, pxRows: 20);
+        $this->assertSame([$start['srcX'] + 1, $start['srcY'] + 1], self::origin($view, cols: 40));
+        $view->panBy(-1, -1, cols: 40, pxRows: 20);
+        $view->panBy(-1, -1, cols: 40, pxRows: 20);
+        $this->assertSame([$start['srcX'] - 1, $start['srcY'] - 1], self::origin($view, cols: 40));
     }
 
     /**
@@ -72,13 +72,13 @@ final class ZoomPanModelGeometryTest extends TestCase
     public function testAPanStopsAtThePicturesFarEdge(): void
     {
         $view = self::at800(45);
-        $view->panBy(10_000, 10_000, 45, 20);
+        $view->panBy(10_000, dyHalfRows: 10_000, cols: 45, pxRows: 20);
         $this->assertSame('8:95:58', $view->stateKey());
 
         $doubled = new ZoomPanModel(100, 60);
-        $doubled->actualSize(40, 20);
-        $doubled->zoomIn(40, 20);
-        $doubled->panBy(10_000, 10_000, 40, 20);
+        $doubled->actualSize(40, pxRows: 20);
+        $doubled->zoomIn(40, pxRows: 20);
+        $doubled->panBy(10_000, dyHalfRows: 10_000, cols: 40, pxRows: 20);
         $this->assertSame('2:80:50', $doubled->stateKey(), 'at 200%, the pane is 20 × 10 pixels of it');
     }
 
@@ -86,19 +86,19 @@ final class ZoomPanModelGeometryTest extends TestCase
     public function testTheDrawnSpanRoundsToTheNearestCell(): void
     {
         $view = new ZoomPanModel(7, 7, [0.3, 0.5]);
-        $view->zoomOut(100, 100);
+        $view->zoomOut(100, pxRows: 100);
         $this->assertSame([4, 4], self::span($view), '3.5 at 50%');
-        $view->zoomOut(100, 100);
+        $view->zoomOut(100, pxRows: 100);
         $this->assertSame([2, 2], self::span($view), '2.1 at 30%');
 
         $dot = new ZoomPanModel(1, 1);
-        $dot->actualSize(1, 1);
-        $dot->zoomOut(1, 1);
-        $dot->zoomOut(1, 1);
-        $dot->zoomOut(1, 1);
+        $dot->actualSize(1, pxRows: 1);
+        $dot->zoomOut(1, pxRows: 1);
+        $dot->zoomOut(1, pxRows: 1);
+        $dot->zoomOut(1, pxRows: 1);
         $this->assertSame('0.125', \explode(':', $dot->stateKey())[0]);
-        $this->assertSame(1, $dot->visibleRect(1, 1)['outCols'], 'an eighth of a pixel is still a cell');
-        $this->assertSame(1, $dot->visibleRect(1, 1)['outHalfRows']);
+        $this->assertSame(1, $dot->visibleRect(1, pxRows: 1)['outCols'], 'an eighth of a pixel is still a cell');
+        $this->assertSame(1, $dot->visibleRect(1, pxRows: 1)['outHalfRows']);
     }
 
     /**
@@ -110,11 +110,11 @@ final class ZoomPanModelGeometryTest extends TestCase
     public function testAWheelZoomCountsTheAnchorFromThePicturesEdge(): void
     {
         $wide = new ZoomPanModel(100, 60);
-        $wide->zoomAt(1, 23, 10, 40, 20); // column 23 is pixel 60, half-row 10 is pixel 30
+        $wide->zoomAt(1, anchorCol: 23, anchorHalfRow: 10, cols: 40, pxRows: 20); // column 23 is pixel 60, half-row 10 is pixel 30
         $this->assertSame('0.5:14:10', $wide->stateKey());
 
         $tall = new ZoomPanModel(60, 100);
-        $tall->zoomAt(1, 10, 23, 20, 40);
+        $tall->zoomAt(1, anchorCol: 10, anchorHalfRow: 23, cols: 20, pxRows: 40);
         $this->assertSame('0.5:10:14', $tall->stateKey());
     }
 
@@ -123,22 +123,22 @@ final class ZoomPanModelGeometryTest extends TestCase
     {
         $a = self::at800(40);
         $b = self::at800(40);
-        [$x, $y] = self::origin($a, 40);
-        $a->panBy(8 * (12 - $x), 8 * (3 - $y), 40, 20);
-        $b->panBy(8 * (1 - $x), 8 * (23 - $y), 40, 20);
+        [$x, $y] = self::origin($a, cols: 40);
+        $a->panBy(8 * (12 - $x), 8 * (3 - $y), cols: 40, pxRows: 20);
+        $b->panBy(8 * (1 - $x), 8 * (23 - $y), cols: 40, pxRows: 20);
 
-        $this->assertSame([12, 3], self::origin($a, 40));
-        $this->assertSame([1, 23], self::origin($b, 40));
+        $this->assertSame([12, 3], self::origin($a, cols: 40));
+        $this->assertSame([1, 23], self::origin($b, cols: 40));
         $this->assertNotSame($a->stateKey(), $b->stateKey());
     }
 
     private static function at800(int $cols): ZoomPanModel
     {
         $view = new ZoomPanModel(100, 60);
-        $view->actualSize($cols, 20);
-        $view->zoomIn($cols, 20);
-        $view->zoomIn($cols, 20);
-        $view->zoomIn($cols, 20);
+        $view->actualSize($cols, pxRows: 20);
+        $view->zoomIn($cols, pxRows: 20);
+        $view->zoomIn($cols, pxRows: 20);
+        $view->zoomIn($cols, pxRows: 20);
 
         return $view;
     }
@@ -146,7 +146,7 @@ final class ZoomPanModelGeometryTest extends TestCase
     /** @return array{int, int} */
     private static function origin(ZoomPanModel $view, int $cols): array
     {
-        $rect = $view->visibleRect($cols, 20);
+        $rect = $view->visibleRect($cols, pxRows: 20);
 
         return [$rect['srcX'], $rect['srcY']];
     }
@@ -154,7 +154,7 @@ final class ZoomPanModelGeometryTest extends TestCase
     /** @return array{int, int} */
     private static function span(ZoomPanModel $view): array
     {
-        $rect = $view->visibleRect(100, 100);
+        $rect = $view->visibleRect(100, pxRows: 100);
 
         return [$rect['outCols'], $rect['outHalfRows']];
     }

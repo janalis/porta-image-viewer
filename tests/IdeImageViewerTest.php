@@ -71,7 +71,7 @@ final class IdeImageViewerTest extends TestCase
         // A plugin pane's tab keys — next/prev/close/go-to-file — work only
         // because the registrar hands it the IDE's own ViewerTabHandler. Core
         // cannot assert this: the pane type is this plugin's.
-        $project = self::project(['img.png' => PngFixture::bytes(4, 4)]);
+        $project = self::project(['img.png' => PngFixture::bytes(4, height: 4)]);
         \putenv('PATH=/nonexistent');
 
         $this->runIde(
@@ -81,7 +81,7 @@ final class IdeImageViewerTest extends TestCase
                 200 => function ($tui, $terminal, Ide $ide): void {
                     $pane = Services::resolve($ide, EditorPanes::class)->paneFor('image');
                     $this->assertInstanceOf(EditorPaneWidget::class, $pane, 'the bundled plugin registered its pane');
-                    $this->assertInstanceOf(BufferNavigator::class, Probe::get($pane, 'handler'));
+                    $this->assertInstanceOf(BufferNavigator::class, Probe::get($pane, property: 'handler'));
                 },
             ],
         );
@@ -90,7 +90,7 @@ final class IdeImageViewerTest extends TestCase
     public function testImageOpensInlineWithHalfBlocksZoomAndPan(): void
     {
         \putenv('PATH=/nonexistent');
-        $project = self::project(['img.png' => $this->twoColorPng(64, 64)]);
+        $project = self::project(['img.png' => $this->twoColorPng(64, height: 64)]);
 
         $this->runIde(
             $project,
@@ -124,7 +124,7 @@ final class IdeImageViewerTest extends TestCase
                     $this->assertStringContainsString('200%', $terminal->getOutput(), 'ctrl+wheel zoomed a ladder step');
                     $this->pump(0.15); // past ZoomGesture's 0.1s burst window: a lone notch steps, not glides
                     $tui->handleInput("\x1b[<81;80;10M"); // ctrl+wheel down → back out
-                    $this->assertSame('100%', Widgets::byId($tui, 'image-viewer', ImageViewerWidget::class)->zoomLabel());
+                    $this->assertSame('100%', Widgets::byId($tui, id: 'image-viewer', class: ImageViewerWidget::class)->zoomLabel());
                     $this->assertSame('image-viewer', $tui->getFocus()?->getId(), 'click over the image keeps the viewer focused');
                     // Go-to-file is now the editor-hosted picker (a files-only
                     // Search Everywhere), so with only an image tab it refuses
@@ -139,7 +139,7 @@ final class IdeImageViewerTest extends TestCase
                     $tui->handleInput("\x1b[B"); // ↓ drops File
                     // Not `Ctrl+Q`: the status bar's legend always shows that,
                     // so it proved nothing about the dropdown.
-                    $this->awaitPainted($tui, $terminal, 'Save File');
+                    $this->awaitPainted($tui, $terminal, needle: 'Save File');
                     $this->assertStringContainsString('Save File', AnsiUtils::stripAnsiCodes($terminal->getOutput()), 'the File dropdown composites over the image');
                     $tui->handleInput("\x1b"); // close the menu
                 },
@@ -154,7 +154,7 @@ final class IdeImageViewerTest extends TestCase
     public function testClickingTheStatusBarsZoomHintsZooms(): void
     {
         \putenv('PATH=/nonexistent');
-        $project = self::project(['img.png' => $this->twoColorPng(64, 64)]);
+        $project = self::project(['img.png' => $this->twoColorPng(64, height: 64)]);
 
         $this->runIde(
             $project,
@@ -163,11 +163,11 @@ final class IdeImageViewerTest extends TestCase
                 200 => function (Tui $tui, VirtualTerminal $terminal): void {
                     $this->frame($tui);
                     $grid = $this->screenGrid($tui, $terminal);
-                    $row = $this->rowOf($grid, '+/- zoom');
+                    $row = $this->rowOf($grid, needle: '+/- zoom');
                     $this->assertNotNull($row, 'the zoom hints are on the status bar');
                     $plus = (int) \mb_strpos($grid[$row], needle: '+/- zoom');
                     $fit = (int) \mb_strpos($grid[$row], needle: '0 fit');
-                    $viewer = Widgets::byId($tui, 'image-viewer', ImageViewerWidget::class);
+                    $viewer = Widgets::byId($tui, id: 'image-viewer', class: ImageViewerWidget::class);
                     $this->assertInstanceOf(ImageViewerWidget::class, $viewer);
                     $label = $viewer->zoomLabel();
                     $this->assertStringStartsWith('Fit', $label);
@@ -192,14 +192,14 @@ final class IdeImageViewerTest extends TestCase
     public function testATrackpadCtrlScrollBurstGlidesWhereASingleNotchSteps(): void
     {
         \putenv('PATH=/nonexistent');
-        $project = self::project(['img.png' => $this->twoColorPng(64, 64)]);
+        $project = self::project(['img.png' => $this->twoColorPng(64, height: 64)]);
 
         $this->runIde(
             $project,
             $project->path('img.png'),
             [
                 200 => function (Tui $tui): void {
-                    $viewer = Widgets::byId($tui, 'image-viewer', ImageViewerWidget::class);
+                    $viewer = Widgets::byId($tui, id: 'image-viewer', class: ImageViewerWidget::class);
                     $tui->handleInput('1'); // 100%, off the fit scale
                     $this->assertSame('100%', $viewer->zoomLabel());
 
@@ -223,7 +223,7 @@ final class IdeImageViewerTest extends TestCase
                 400 => function (Tui $tui): void {
                     $this->pump(0.15);
                     $tui->handleInput("\x1b[<80;40;10M");
-                    $this->assertSame('400%', Widgets::byId($tui, 'image-viewer', ImageViewerWidget::class)->zoomLabel(), 'an isolated notch still steps');
+                    $this->assertSame('400%', Widgets::byId($tui, id: 'image-viewer', class: ImageViewerWidget::class)->zoomLabel(), 'an isolated notch still steps');
                 },
             ],
         );
@@ -232,7 +232,7 @@ final class IdeImageViewerTest extends TestCase
     public function testImageTabSwitchingSavingAndClosingKeepTheEditorSafe(): void
     {
         \putenv('PATH=/nonexistent');
-        $png = $this->twoColorPng(8, 4);
+        $png = $this->twoColorPng(8, height: 4);
         $project = self::project(['a.php' => "<?php\n// code\n", 'img.png' => $png]);
 
         $this->runIde(
@@ -262,13 +262,13 @@ final class IdeImageViewerTest extends TestCase
                     $this->frame($tui);
                     $this->assertSame('image-viewer', $tui->getFocus()?->getId());
                     // An external change re-decodes on the next poll; garbage keeps the old pixels.
-                    \file_put_contents($project->path('img.png'), $this->twoColorPng(16, 2));
+                    \file_put_contents($project->path('img.png'), $this->twoColorPng(16, height: 2));
                     \touch($project->path('img.png'), \time() + 2); // force a new disk stamp within the same second
                     $service = Services::resolve($ide, BufferService::class);
                     $service->pollFilesystem();
                     $buffers = Services::resolve($ide, BufferManager::class);
                     $this->assertSame(16, $buffers->active()?->panePayload?->width, 'externally changed image reloaded');
-                    $this->awaitPainted($tui, $terminal, 'Reloaded img.png');
+                    $this->awaitPainted($tui, $terminal, needle: 'Reloaded img.png');
                     $this->assertStringContainsString('Reloaded img.png', AnsiUtils::stripAnsiCodes($terminal->getOutput()));
                     \file_put_contents($project->path('img.png'), data: 'not a png anymore');
                     \touch($project->path('img.png'), \time() + 4);
@@ -288,7 +288,7 @@ final class IdeImageViewerTest extends TestCase
     public function testImageTabGuardsEditorHostedModals(): void
     {
         \putenv('PATH=/nonexistent');
-        $project = self::project(['a.php' => "<?php\n", 'img.png' => $this->twoColorPng(4, 4)]);
+        $project = self::project(['a.php' => "<?php\n", 'img.png' => $this->twoColorPng(4, height: 4)]);
 
         // With only the image open, the editor-hosted modals refuse with a flash.
         $this->runIde(
@@ -298,7 +298,7 @@ final class IdeImageViewerTest extends TestCase
                 200 => function (Tui $tui, VirtualTerminal $terminal): void {
                     $tui->handleInput("\x1b[101;6u"); // ctrl+shift+e → search everywhere
                     $tui->handleInput("\x1b[102;6u"); // ctrl+shift+f → find in files (same guard)
-                    $this->awaitPainted($tui, $terminal, 'Not available in this view');
+                    $this->awaitPainted($tui, $terminal, needle: 'Not available in this view');
                     $this->assertStringContainsString('Not available in this view', AnsiUtils::stripAnsiCodes($terminal->getOutput()));
                 },
             ],
@@ -333,21 +333,21 @@ final class IdeImageViewerTest extends TestCase
             // text path's own 2 MB refusal instead).
             '.porta.json' => (string) \json_encode(['plugins' => ['image-viewer' => ['maxBytes' => 30 * 1024 * 1024]]], \JSON_THROW_ON_ERROR),
             'fake.png' => 'not an image at all',
-            'img.png' => $this->twoColorPng(4, 4),
+            'img.png' => $this->twoColorPng(4, height: 4),
         ]);
         \file_put_contents($project->path('big.png'), \str_repeat('x', 21 * 1024 * 1024));
 
         $this->runIde(
             $project,
-            null,
-            [
+            file: null,
+            steps: [
                 200 => function (Tui $tui, VirtualTerminal $terminal, Ide $ide) use ($project): void {
                     $service = Services::resolve($ide, BufferService::class);
                     $service->openFile($project->path('big.png'));
-                    $this->awaitPainted($tui, $terminal, 'Image too large (> 20 MB)');
+                    $this->awaitPainted($tui, $terminal, needle: 'Image too large (> 20 MB)');
                     $this->assertStringContainsString('Image too large (> 20 MB)', AnsiUtils::stripAnsiCodes($terminal->getOutput()));
                     $service->openFile($project->path('fake.png'));
-                    $this->awaitPainted($tui, $terminal, 'Cannot display image fake.png');
+                    $this->awaitPainted($tui, $terminal, needle: 'Cannot display image fake.png');
                     $this->assertStringContainsString('Cannot display image fake.png', AnsiUtils::stripAnsiCodes($terminal->getOutput()));
                     // Open the good one, then close the last tab: the editor pane empties.
                     $service->openFile($project->path('img.png'), OpenFocus::Editor);
@@ -378,21 +378,21 @@ final class IdeImageViewerTest extends TestCase
     public function testReopeningAChangedImageRefreshesThePixelsImmediately(): void
     {
         \putenv('PATH=/nonexistent');
-        $project = self::project(['img.png' => $this->twoColorPng(64, 64), 'a.php' => "<?php\n"]);
+        $project = self::project(['img.png' => $this->twoColorPng(64, height: 64), 'a.php' => "<?php\n"]);
 
         $this->runIde(
             $project,
             $project->path('img.png'),
             [
                 200 => function (Tui $tui, VirtualTerminal $terminal, Ide $ide) use ($project): void {
-                    $this->awaitPainted($tui, $terminal, '64 × 64');
+                    $this->awaitPainted($tui, $terminal, needle: '64 × 64');
                     $this->assertStringContainsString('64 × 64', AnsiUtils::stripAnsiCodes($terminal->getOutput()));
 
                     // Switch away, change the file on disk, and explicitly re-open:
                     // the payload refreshes without waiting out the 1s reconciler.
                     $service = Services::resolve($ide, BufferService::class);
                     $service->openFile((string) \realpath($project->path('a.php')));
-                    \file_put_contents($project->path('img.png'), data: $this->twoColorPng(32, 16));
+                    \file_put_contents($project->path('img.png'), data: $this->twoColorPng(32, height: 16));
                     $service->openFile((string) \realpath($project->path('img.png')));
                     $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '32 × 16'), what: 'the refreshed dimensions');
                 },
@@ -512,7 +512,7 @@ final class IdeImageViewerTest extends TestCase
             $project->path('logo.svg'),
             [
                 200 => function (Tui $tui, $terminal, Ide $ide) use ($project): void {
-                    $pane = Widgets::byId($tui, 'image-viewer', ImageViewerWidget::class);
+                    $pane = Widgets::byId($tui, id: 'image-viewer', class: ImageViewerWidget::class);
                     $this->await(static fn (): bool => '100 × 50' === $pane->statusInfo(), what: 'the first raster');
 
                     // The EDITOR's text changes, not the file: nothing is saved,
@@ -556,7 +556,7 @@ final class IdeImageViewerTest extends TestCase
                     // The stub converter reports height = width / 2, so a 70-wide
                     // document probes as 70 × 35.
                     $this->await(static fn (): bool => \str_contains(AnsiUtils::stripAnsiCodes($terminal->getOutput()), '70 × 35'), what: 'the reloaded document');
-                    $this->assertSame('70 × 35', Widgets::byId($tui, 'image-viewer', ImageViewerWidget::class)->statusInfo(), 'the poller re-read the source and the pane re-rasterized it');
+                    $this->assertSame('70 × 35', Widgets::byId($tui, id: 'image-viewer', class: ImageViewerWidget::class)->statusInfo(), 'the poller re-read the source and the pane re-rasterized it');
 
                     // Garbage keeps the picture, the same contract the bitmap
                     // path keeps: an unreadable new payload is not a reason to
@@ -565,7 +565,7 @@ final class IdeImageViewerTest extends TestCase
                     \touch($project->path('logo.svg'), mtime: \time() + 4);
                     Services::resolve($ide, BufferService::class)->pollFilesystem();
                     $this->pump(0.3);
-                    $this->assertSame('70 × 35', Widgets::byId($tui, 'image-viewer', ImageViewerWidget::class)->statusInfo(), 'invalid new bytes keep the last good document');
+                    $this->assertSame('70 × 35', Widgets::byId($tui, id: 'image-viewer', class: ImageViewerWidget::class)->statusInfo(), 'invalid new bytes keep the last good document');
                 },
             ],
         );
@@ -685,7 +685,7 @@ final class IdeImageViewerTest extends TestCase
             $project->path('logo.svg'),
             [
                 200 => function (Tui $tui, $terminal, Ide $ide): void {
-                    $pane = Widgets::byId($tui, 'image-viewer', ImageViewerWidget::class);
+                    $pane = Widgets::byId($tui, id: 'image-viewer', class: ImageViewerWidget::class);
                     $this->await(static fn (): bool => '100 × 50' === $pane->statusInfo(), what: 'the picture beside the text');
                     $this->frame($tui);
                     $rect = Services::resolve($ide, Renderer::class)->getWidgetRect($pane);

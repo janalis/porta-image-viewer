@@ -74,10 +74,10 @@ final class SvgGeometryTest extends TestCase
     {
         $identity = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0];
 
-        $this->assertSame([2.0, 0.0, 0.0, 2.0, -20.0, 10.0], self::viewBox('10 20 100 50', 200.0, 200.0), 'fitted by its width, centred down');
-        $this->assertSame([2.0, 0.0, 0.0, 2.0, 30.0, -40.0], self::viewBox('10 20 50 100', 200.0, 200.0), 'fitted by its height, centred across');
+        $this->assertSame([2.0, 0.0, 0.0, 2.0, -20.0, 10.0], self::viewBox('10 20 100 50', width: 200.0, height: 200.0), 'fitted by its width, centred down');
+        $this->assertSame([2.0, 0.0, 0.0, 2.0, 30.0, -40.0], self::viewBox('10 20 50 100', width: 200.0, height: 200.0), 'fitted by its height, centred across');
         foreach (['', '0 0 100', '0 0 0 50', '0 0 100 0', '0 0 -5 50'] as $box) {
-            $this->assertSame($identity, self::viewBox($box, 200.0, 200.0), "'{$box}' maps nothing");
+            $this->assertSame($identity, self::viewBox($box, width: 200.0, height: 200.0), "'{$box}' maps nothing");
         }
     }
 

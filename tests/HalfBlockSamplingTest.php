@@ -27,23 +27,23 @@ final class HalfBlockSamplingTest extends TestCase
     public function testAShrunkCopyIsSampledInItsOwnPixels(): void
     {
         $view = new ZoomPanModel(16, 16);
-        $view->actualSize(4, 4);
-        $view->zoomOut(4, 4); // 50%, centred: the original from (4, 4)
-        $half = self::coded(8, 8, 2);
+        $view->actualSize(4, pxRows: 4);
+        $view->zoomOut(4, pxRows: 4); // 50%, centred: the original from (4, 4)
+        $half = self::coded(8, height: 8, step: 2);
 
         $this->assertSame(
             [
                 [[[4, 4], [4, 6]], [[6, 4], [6, 6]], [[8, 4], [8, 6]], [[10, 4], [10, 6]]],
                 [[[4, 8], [4, 10]], [[6, 8], [6, 10]], [[8, 8], [8, 10]], [[10, 8], [10, 10]]],
             ],
-            self::cells(HalfBlockRasterizer::render(new SampleSource($half, 0.5), $view, 4, 2)),
+            self::cells(HalfBlockRasterizer::render(new SampleSource($half, 0.5), $view, cols: 4, rows: 2)),
         );
     }
 
     /** Magnified 2.5×, a half-cell shows the pixel its top-left corner falls in. */
     public function testAMagnifiedPixelIsTheOneUnderTheCellsLeftEdge(): void
     {
-        $cells = self::cells(HalfBlockRasterizer::render(SampleSource::original(self::coded(4, 4)), new ZoomPanModel(4, 4), 10, 5));
+        $cells = self::cells(HalfBlockRasterizer::render(SampleSource::original(self::coded(4, height: 4)), new ZoomPanModel(4, 4), cols: 10, rows: 5));
         $columns = \array_map(static fn (array $cell): int => $cell[0][0], $cells[0]);
         $halfRows = \array_merge(...\array_map(static fn (array $row): array => [$row[0][0][1], $row[0][1][1]], $cells));
 
@@ -58,13 +58,13 @@ final class HalfBlockSamplingTest extends TestCase
     public function testThePanesFarEdgeShowsThePicturesLastPixel(): void
     {
         $view = new ZoomPanModel(100, 60);
-        $view->actualSize(45, 20);
+        $view->actualSize(45, pxRows: 20);
         foreach (\range(1, end: 3) as $ignored) {
-            $view->zoomIn(45, 20);
+            $view->zoomIn(45, pxRows: 20);
         }
-        $view->panBy(10_000, 10_000, 45, 20);
+        $view->panBy(10_000, dyHalfRows: 10_000, cols: 45, pxRows: 20);
 
-        $cells = self::cells(HalfBlockRasterizer::render(SampleSource::original(self::coded(100, 60)), $view, 45, 10));
+        $cells = self::cells(HalfBlockRasterizer::render(SampleSource::original(self::coded(100, height: 60)), $view, cols: 45, rows: 10));
 
         $this->assertSame([[99, 59], [99, 59]], [$cells[9][44][1], $cells[9][43][1]]);
         $this->assertSame([95, 58], $cells[0][0][0]);

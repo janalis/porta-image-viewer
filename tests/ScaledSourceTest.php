@@ -31,7 +31,7 @@ final class ScaledSourceTest extends TestCase
 
     public function testAtOrAboveOneToOneTheOriginalPixelsAreSampled(): void
     {
-        $image = $this->withThinLine(20, 2, lineX: 5);
+        $image = $this->withThinLine(20, height: 2, lineX: 5);
         $scaled = new ScaledSource();
 
         foreach ([1.0, 2.0, 8.0] as $scale) {
@@ -43,8 +43,8 @@ final class ScaledSourceTest extends TestCase
 
     public function testBelowOneToOneItResamplesToTheScaleAndReportsTheRatio(): void
     {
-        $image = $this->withThinLine(100, 50, lineX: 5);
-        $source = new ScaledSource()->forScale($image, 0.1);
+        $image = $this->withThinLine(100, height: 50, lineX: 5);
+        $source = new ScaledSource()->forScale($image, scale: 0.1);
 
         $this->assertNotSame($image, $source->image);
         $this->assertSame(10, $source->image->width);
@@ -54,7 +54,7 @@ final class ScaledSourceTest extends TestCase
 
     public function testADegenerateScaleStillYieldsOnePixel(): void
     {
-        $source = new ScaledSource()->forScale($this->withThinLine(20, 2, lineX: 5), 0.001);
+        $source = new ScaledSource()->forScale($this->withThinLine(20, height: 2, lineX: 5), scale: 0.001);
 
         $this->assertSame(1, $source->image->width);
         $this->assertSame(1, $source->image->height);
@@ -62,27 +62,27 @@ final class ScaledSourceTest extends TestCase
 
     public function testTheCopyIsMemoisedPerScaleAndPerImage(): void
     {
-        $image = $this->withThinLine(40, 4, lineX: 5);
-        $other = $this->withThinLine(40, 4, lineX: 9);
+        $image = $this->withThinLine(40, height: 4, lineX: 5);
+        $other = $this->withThinLine(40, height: 4, lineX: 9);
         $scaled = new ScaledSource();
 
-        $first = $scaled->forScale($image, 0.25);
-        $this->assertSame($first, $scaled->forScale($image, 0.25), 'a pan at one scale must not resample again');
-        $this->assertNotSame($first, $scaled->forScale($image, 0.5), 'a zoom step needs its own copy');
-        $this->assertNotSame($first, $scaled->forScale($other, 0.25), 'a new image at the same scale must not reuse the old copy');
+        $first = $scaled->forScale($image, scale: 0.25);
+        $this->assertSame($first, $scaled->forScale($image, scale: 0.25), 'a pan at one scale must not resample again');
+        $this->assertNotSame($first, $scaled->forScale($image, scale: 0.5), 'a zoom step needs its own copy');
+        $this->assertNotSame($first, $scaled->forScale($other, scale: 0.25), 'a new image at the same scale must not reuse the old copy');
     }
 
     public function testAnOversampledSourceIsMeasuredInTheCallersUnits(): void
     {
         // A bitmap rendered at 2 pixels per unit (the graph viewer's 144 dpi).
-        $bitmap = $this->withThinLine(40, 40, lineX: 5);
+        $bitmap = $this->withThinLine(40, height: 40, lineX: 5);
         $scaled = new ScaledSource();
 
-        $same = $scaled->forScale($bitmap, 2.0, ratio: 2.0);
+        $same = $scaled->forScale($bitmap, scale: 2.0, ratio: 2.0);
         $this->assertSame($bitmap, $same->image, 'zoom 2 on a 2× bitmap is 1:1 — nothing to average');
         $this->assertSame(2.0, $same->ratio);
 
-        $copy = $scaled->forScale($bitmap, 0.5, ratio: 2.0);
+        $copy = $scaled->forScale($bitmap, scale: 0.5, ratio: 2.0);
         $this->assertSame(10, $copy->image->width, 'zoom 0.5 on a 2× bitmap is a 4× shrink');
         $this->assertSame(0.5, $copy->ratio, 'and the ratio comes back in the caller\'s units, not the copy\'s');
     }
@@ -151,8 +151,8 @@ final class ScaledSourceTest extends TestCase
      */
     public function testAStagedCopyIsIndistinguishableFromASingleStageOne(): void
     {
-        $image = $this->lineArt(300, 5000);
-        $staged = new ScaledSource()->forScale($image, 0.1);
+        $image = $this->lineArt(300, height: 5000);
+        $staged = new ScaledSource()->forScale($image, scale: 0.1);
         [$width, $height] = [$staged->image->width, $staged->image->height];
 
         $this->assertSame([30, 500], [$width, $height]);
@@ -173,9 +173,9 @@ final class ScaledSourceTest extends TestCase
     public function testALevelExactlyAtTheBudgetIsAlreadySmallEnough(): void
     {
         $scaled = new ScaledSource();
-        $scaled->forScale($this->lineArt(1000, 600), 0.1);
+        $scaled->forScale($this->lineArt(1000, height: 600), scale: 0.1);
 
-        $this->assertSame([], Probe::get($scaled, 'levels'));
+        $this->assertSame([], Probe::get($scaled, property: 'levels'));
     }
 
     /**
@@ -188,10 +188,10 @@ final class ScaledSourceTest extends TestCase
     public function testATargetTooBigToAverageIsTakenFromTheImageItself(): void
     {
         $scaled = new ScaledSource();
-        $copy = $scaled->forScale($this->lineArt(900, 900), 1 / 3);
+        $copy = $scaled->forScale($this->lineArt(900, height: 900), 1 / 3);
 
         $this->assertSame(300, $copy->image->width);
-        $this->assertSame([], Probe::get($scaled, 'levels'), 'no halving is close enough to 300 to average from');
+        $this->assertSame([], Probe::get($scaled, property: 'levels'), 'no halving is close enough to 300 to average from');
     }
 
     /**
@@ -203,18 +203,18 @@ final class ScaledSourceTest extends TestCase
      */
     public function testTheHalvingsAreBuiltPerImageNotPerScale(): void
     {
-        $image = $this->lineArt(1600, 1600);
+        $image = $this->lineArt(1600, height: 1600);
         $scaled = new ScaledSource();
 
-        $scaled->forScale($image, 0.03);
-        $afterFirst = Probe::get($scaled, 'levels');
+        $scaled->forScale($image, scale: 0.03);
+        $afterFirst = Probe::get($scaled, property: 'levels');
         $this->assertIsArray($afterFirst);
         $this->assertNotSame([], $afterFirst, 'a hard downscale is sampled from a halving, not from the image');
 
         for ($step = 1; $step <= 8; ++$step) {
             $scaled->forScale($image, 0.03 + ($step / 1000));
         }
-        $afterZooming = Probe::get($scaled, 'levels');
+        $afterZooming = Probe::get($scaled, property: 'levels');
         $this->assertIsArray($afterZooming);
         $this->assertSame($afterFirst, $afterZooming, 'zooming within one band must reuse the levels it already has');
     }
@@ -227,20 +227,20 @@ final class ScaledSourceTest extends TestCase
      */
     public function testZoomingBackInClimbsTheHalvingsItAlreadyBuilt(): void
     {
-        $image = $this->lineArt(1600, 1600);
+        $image = $this->lineArt(1600, height: 1600);
         $scaled = new ScaledSource();
-        $scaled->forScale($image, 0.03);
-        $built = Probe::get($scaled, 'levels');
+        $scaled->forScale($image, scale: 0.03);
+        $built = Probe::get($scaled, property: 'levels');
         $this->assertSame([800, 400], \array_map(static fn (ImageData $level): int => $level->width, $built));
 
         // 320 wide: the 800 halving still oversamples it (2.5×), the 400 one
         // does not — sampling THAT would be a 1.25× copy that averages nothing.
-        $climbed = $scaled->forScale($image, 0.2)->image;
+        $climbed = $scaled->forScale($image, scale: 0.2)->image;
         $this->assertSame(320, $climbed->width);
         // 480 wide: nothing oversamples it, so the image itself is the source.
-        $wider = $scaled->forScale($image, 0.3)->image;
+        $wider = $scaled->forScale($image, scale: 0.3)->image;
         $this->assertSame(480, $wider->width);
-        $this->assertSame($built, Probe::get($scaled, 'levels'), 'climbing back up must build nothing');
+        $this->assertSame($built, Probe::get($scaled, property: 'levels'), 'climbing back up must build nothing');
 
         // The sizes above hold whichever level the pixels came from — they are
         // computed off the ORIGINAL either way — so only the picture says the
@@ -249,12 +249,12 @@ final class ScaledSourceTest extends TestCase
         // 4.5. And 480 out of it is an outright MAGNIFY: 0.0 becomes 6.3.
         $this->assertLessThan(
             3.0,
-            $this->meanAbsoluteDifference($climbed, $this->directResample($image, 320, 320)),
+            $this->meanAbsoluteDifference($climbed, $this->directResample($image, width: 320, height: 320)),
             'the copy must be an average of a finer level, not a 1.25× copy of a coarser one',
         );
         $this->assertLessThan(
             1.0,
-            $this->meanAbsoluteDifference($wider, $this->directResample($image, 480, 480)),
+            $this->meanAbsoluteDifference($wider, $this->directResample($image, width: 480, height: 480)),
             'a target no level oversamples comes from the image, never from a blow-up',
         );
     }
@@ -262,11 +262,11 @@ final class ScaledSourceTest extends TestCase
     public function testANewImageDropsTheHalvingsWithIt(): void
     {
         $scaled = new ScaledSource();
-        $scaled->forScale($this->lineArt(1600, 1600), 0.03);
-        $this->assertNotSame([], Probe::get($scaled, 'levels'));
+        $scaled->forScale($this->lineArt(1600, height: 1600), scale: 0.03);
+        $this->assertNotSame([], Probe::get($scaled, property: 'levels'));
 
-        $scaled->forScale($this->lineArt(1024, 1024), 0.03);
-        $this->assertSame([512], \array_map(static fn (ImageData $level): int => $level->width, Probe::get($scaled, 'levels')));
+        $scaled->forScale($this->lineArt(1024, height: 1024), scale: 0.03);
+        $this->assertSame([512], \array_map(static fn (ImageData $level): int => $level->width, Probe::get($scaled, property: 'levels')));
     }
 
     /**
@@ -278,14 +278,14 @@ final class ScaledSourceTest extends TestCase
     {
         // Square, so the 2×1 pane's fit is 0.1 on both axes and every half-row
         // reads a real pixel (no letterbox to muddy the assertion).
-        $image = $this->withThinLine(20, 20, lineX: 5);
+        $image = $this->withThinLine(20, height: 20, lineX: 5);
         $view = new ZoomPanModel(20, 20);
 
         // The left cell covers x 0-9, so it is the one holding the line.
-        $nearest = HalfBlockRasterizer::render(SampleSource::original($image), $view, 2, 1)[0];
+        $nearest = HalfBlockRasterizer::render(SampleSource::original($image), $view, cols: 2, rows: 1)[0];
         $this->assertStringStartsWith("\x1b[38;2;0;0;0;48;2;0;0;0m", $nearest, 'nearest-neighbour reads x=0 and misses the line entirely');
 
-        $averaged = HalfBlockRasterizer::render(new ScaledSource()->forScale($image, 0.1), $view, 2, 1)[0];
+        $averaged = HalfBlockRasterizer::render(new ScaledSource()->forScale($image, scale: 0.1), $view, cols: 2, rows: 1)[0];
         \preg_match('/^\x1b\[38;2;(\d+);(\d+);(\d+)/', $averaged, $rgb);
         $this->assertGreaterThan(0, (int) $rgb[1], 'the averaged copy carries the line as a grey');
         $this->assertSame([$rgb[1], $rgb[1]], [$rgb[2], $rgb[3]], 'and it is neutral, not a colour cast');

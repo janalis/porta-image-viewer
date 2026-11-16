@@ -52,7 +52,7 @@ final class SvgRasterizerTest extends TestCase
 
     public function testRendersTheDocumentsOwnSizeWhenNoScaleIsAsked(): void
     {
-        [$png, $error] = $this->render(new SvgRasterizer(\sys_get_temp_dir(), self::stub()), self::SMALL_SVG, null);
+        [$png, $error] = $this->render(new SvgRasterizer(\sys_get_temp_dir(), self::stub()), self::SMALL_SVG, scale: null);
 
         $this->assertNull($error);
         $image = new ImageDecoder()->decodeBytes((string) $png);
@@ -66,7 +66,7 @@ final class SvgRasterizerTest extends TestCase
     {
         $rasterizer = new SvgRasterizer(\sys_get_temp_dir(), self::stub());
 
-        [$png] = $this->render($rasterizer, self::SMALL_SVG, 2.5);
+        [$png] = $this->render($rasterizer, self::SMALL_SVG, scale: 2.5);
         $image = new ImageDecoder()->decodeBytes((string) $png);
         $this->assertInstanceOf(ImageData::class, $image);
         $this->assertSame([250, 125], [$image->width, $image->height], 'librsvg -z 2.5');
@@ -82,7 +82,7 @@ final class SvgRasterizerTest extends TestCase
 
         try {
             $this->assertSame(SvgConverter::Magick, SvgConverter::forBinary('/usr/bin/magick'));
-            [$png] = $this->render(new SvgRasterizer(\sys_get_temp_dir(), $magick), self::SMALL_SVG, 2.5);
+            [$png] = $this->render(new SvgRasterizer(\sys_get_temp_dir(), $magick), self::SMALL_SVG, scale: 2.5);
             $image = new ImageDecoder()->decodeBytes((string) $png);
             $this->assertInstanceOf(ImageData::class, $image);
             $this->assertSame([250, 125], [$image->width, $image->height], '-density 240 is -z 2.5');
@@ -112,23 +112,23 @@ final class SvgRasterizerTest extends TestCase
     {
         $rasterizer = new SvgRasterizer(\sys_get_temp_dir(), self::stub());
 
-        $this->assertSame([512, 256], PngDimensions::read((string) $this->atWidth($rasterizer, self::SMALL_SVG, 512)));
-        $this->assertSame([100, 50], PngDimensions::read((string) $this->atWidth($rasterizer, self::SMALL_SVG, 100)), 'its own width: drawn once');
-        $this->assertNull($this->atWidth($rasterizer, '<svg>broken', 512));
+        $this->assertSame([512, 256], PngDimensions::read((string) $this->atWidth($rasterizer, self::SMALL_SVG, width: 512)));
+        $this->assertSame([100, 50], PngDimensions::read((string) $this->atWidth($rasterizer, self::SMALL_SVG, width: 100)), 'its own width: drawn once');
+        $this->assertNull($this->atWidth($rasterizer, svg: '<svg>broken', width: 512));
     }
 
     public function testWhatIsNoPngIsNothing(): void
     {
         $bin = new TempProject();
-        $bin->write('rsvg-convert', "#!/bin/sh\ncat >/dev/null\nprintf 'not a png'\n");
+        $bin->write('rsvg-convert', content: "#!/bin/sh\ncat >/dev/null\nprintf 'not a png'\n");
         \chmod($bin->path('rsvg-convert'), permissions: 0o755);
 
-        $this->assertNull($this->atWidth(new SvgRasterizer(\sys_get_temp_dir(), $bin->path('rsvg-convert')), self::SMALL_SVG, 512));
+        $this->assertNull($this->atWidth(new SvgRasterizer(\sys_get_temp_dir(), $bin->path('rsvg-convert')), self::SMALL_SVG, width: 512));
     }
 
     public function testAFailureSurfacesTheConvertersStderr(): void
     {
-        [$png, $error] = $this->render(new SvgRasterizer(\sys_get_temp_dir(), self::stub()), '<svg>broken', null);
+        [$png, $error] = $this->render(new SvgRasterizer(\sys_get_temp_dir(), self::stub()), svg: '<svg>broken', scale: null);
 
         $this->assertNull($png);
         $this->assertStringContainsString('XML parse error', (string) $error);
@@ -143,19 +143,19 @@ final class SvgRasterizerTest extends TestCase
         };
         $rasterizer->rasterize(
             self::SMALL_SVG,
-            1.0,
-            static function () use (&$fired): void {
+            scale: 1.0,
+            onPng: static function () use (&$fired): void {
                 $fired[] = 'first';
             },
-            $onError,
+            onError: $onError,
         );
         $rasterizer->rasterize(
             self::SMALL_SVG,
-            2.0,
-            static function () use (&$fired): void {
+            scale: 2.0,
+            onPng: static function () use (&$fired): void {
                 $fired[] = 'second';
             },
-            $onError,
+            onError: $onError,
         );
         $this->await(static function () use (&$fired): bool {
             return [] !== $fired;
@@ -172,7 +172,7 @@ final class SvgRasterizerTest extends TestCase
         $mark = static function () use (&$fired): void {
             $fired = true;
         };
-        $rasterizer->rasterize(self::SMALL_SVG, null, $mark, $mark);
+        $rasterizer->rasterize(self::SMALL_SVG, scale: null, onPng: $mark, onError: $mark);
         $rasterizer->cancel();
         $rasterizer->cancel();
         $this->pump(0.2);
@@ -187,11 +187,11 @@ final class SvgRasterizerTest extends TestCase
         $error = null;
         $rasterizer->rasterize(
             self::SMALL_SVG,
-            null,
-            static function (): never {
+            scale: null,
+            onPng: static function (): never {
                 self::fail('onPng must not fire without a converter');
             },
-            static function (string $message) use (&$error): void {
+            onError: static function (string $message) use (&$error): void {
                 $error = $message;
             },
         );
@@ -251,7 +251,7 @@ final class SvgRasterizerTest extends TestCase
         $rasterizer = new SvgRasterizer(\sys_get_temp_dir());
         $this->assertNotNull($rasterizer->binary(), 'discovery found the installed converter');
 
-        [$png, $error] = $this->render($rasterizer, self::SMALL_SVG, 2.0);
+        [$png, $error] = $this->render($rasterizer, self::SMALL_SVG, scale: 2.0);
         $this->assertNull($error);
         $image = new ImageDecoder()->decodeBytes((string) $png);
         $this->assertInstanceOf(ImageData::class, $image, 'a real converter emitted a decodable PNG');
