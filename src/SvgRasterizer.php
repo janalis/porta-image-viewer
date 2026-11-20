@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Porta\ImageViewer;
 
+use Porta\Support\PathExecutables;
 use Porta\Support\SingleSlotProcess;
 use Porta\Ui\Graphics\PngDimensions;
-use Symfony\Component\Process\ExecutableFinder;
 
 /**
  * SVG to PNG for the image pane: an external SVG renderer as an async
@@ -101,6 +101,6 @@ final readonly class SvgRasterizer
         }
         $converter = SvgConverter::discover();
 
-        return [null === $converter ? null : new ExecutableFinder()->find($converter->binaryName()), $converter];
+        return [null === $converter ? null : PathExecutables::here()->find($converter->binaryName()), $converter];
     }
 }

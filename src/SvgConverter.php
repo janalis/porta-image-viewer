@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Porta\ImageViewer;
 
+use Porta\Support\PathExecutables;
 use Porta\Support\ProjectPaths;
-use Symfony\Component\Process\ExecutableFinder;
 
 /**
  * The SVG converters {@see SvgRasterizer} knows how to drive, in discovery
@@ -73,7 +73,7 @@ enum SvgConverter
      */
     public static function discover(): ?self
     {
-        $finder = new ExecutableFinder();
+        $finder = PathExecutables::here();
         foreach (self::cases() as $converter) {
             if (null !== $finder->find($converter->binaryName())) {
                 return $converter;
