@@ -234,6 +234,6 @@ final class ZoomPanModel
 
     private function clampPan(int $pan, int $imgDim, float $viewDim): int
     {
-        return \max(0, \min($pan, (int) \ceil(\max(0, $imgDim - $viewDim))));
+        return \clamp($pan, min: 0, max: (int) \ceil(\max(0, $imgDim - $viewDim)));
     }
 }
