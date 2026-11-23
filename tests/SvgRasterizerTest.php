@@ -79,11 +79,13 @@ final class SvgRasterizerTest extends TestCase
         // the shape, so the stand-in must be called `magick` itself.
         $dir = \sys_get_temp_dir().'/porta-fake-magick-'.\getmypid();
         $magick = $dir.'/magick';
-        \mkdir($dir);
-        \copy(self::stub(), $magick);
-        \chmod($magick, permissions: 0o755);
 
         try {
+            if (!\is_dir($dir)) {
+                \mkdir($dir);
+            } // a killed run may have left it
+            \copy(self::stub(), $magick);
+            \chmod($magick, permissions: 0o755);
             $this->assertSame(SvgConverter::Magick, SvgConverter::forBinary($magick));
             [$png] = $this->render(new SvgRasterizer(\sys_get_temp_dir(), $magick), self::SMALL_SVG, scale: 2.5);
             $image = new ImageDecoder()->decodeBytes((string) $png);
