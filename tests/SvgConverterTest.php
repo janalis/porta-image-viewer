@@ -24,6 +24,14 @@ final class SvgConverterTest extends TestCase
         $this->assertSame(SvgConverter::Convert, SvgConverter::forBinary('/usr/bin/convert'));
     }
 
+    public function testEachConverterTakesTheScaleInItsOwnFlag(): void
+    {
+        $this->assertSame(['-f', 'png'], SvgConverter::Rsvg->arguments(null));
+        $this->assertSame(['-f', 'png', '-z', '2.5'], SvgConverter::Rsvg->arguments(2.5));
+        $this->assertSame(['-background', 'none', 'svg:-', 'png:-'], SvgConverter::Magick->arguments(null), 'the document\'s own size');
+        $this->assertSame(['-background', 'none', '-density', '240', 'svg:-', 'png:-'], SvgConverter::Convert->arguments(2.5), 'a density relative to the 96-dpi default');
+    }
+
     public function testForBinaryDefaultsToRsvgForAnUnknownName(): void
     {
         $this->assertSame(SvgConverter::Rsvg, SvgConverter::forBinary('/usr/local/bin/some-other-tool'));

@@ -75,19 +75,23 @@ final class SvgRasterizerTest extends TestCase
     public function testTheImageMagickArgvExpressesTheSameScaleAsADensity(): void
     {
         // Driving the same stub under ImageMagick's name proves the other argv
-        // shape agrees: -density 96×scale is what -z is.
-        $magick = \sys_get_temp_dir().'/porta-fake-magick-'.\getmypid();
+        // shape agrees: -density 96×scale is what -z is. The name is what picks
+        // the shape, so the stand-in must be called `magick` itself.
+        $dir = \sys_get_temp_dir().'/porta-fake-magick-'.\getmypid();
+        $magick = $dir.'/magick';
+        \mkdir($dir);
         \copy(self::stub(), $magick);
         \chmod($magick, permissions: 0o755);
 
         try {
-            $this->assertSame(SvgConverter::Magick, SvgConverter::forBinary('/usr/bin/magick'));
+            $this->assertSame(SvgConverter::Magick, SvgConverter::forBinary($magick));
             [$png] = $this->render(new SvgRasterizer(\sys_get_temp_dir(), $magick), self::SMALL_SVG, scale: 2.5);
             $image = new ImageDecoder()->decodeBytes((string) $png);
             $this->assertInstanceOf(ImageData::class, $image);
             $this->assertSame([250, 125], [$image->width, $image->height], '-density 240 is -z 2.5');
         } finally {
             \unlink($magick);
+            \rmdir($dir);
         }
     }
 
